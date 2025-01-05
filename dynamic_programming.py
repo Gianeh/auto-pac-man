@@ -558,7 +558,7 @@ class Game:
         for ghost_index in range(2, self.number_of_movables):
             self.screen.blit(self.ghost_image, (self.current_state[ghost_index][0] * self.tile_size, self.current_state[ghost_index][1] * self.tile_size))
 
-    def run(self, ghost_controlled=False, loop_till_loss=False):
+    def run(self, ghost_controlled=False, loop_till_loss=False, measure_filename=""):
         clock = pygame.time.Clock()
         running = True
 
@@ -784,13 +784,13 @@ class Game:
         if self.measure_performance:
             params = f"efficieny = {self.efficeincy_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
             if self.number_of_moves < self.min_threshold:
-                with open("./under_threshold.txt", "a") as file:
+                with open("./parallel_jobs/"+measure_filename+"_under_threshold.txt", "a") as file:
                     file.write(f"{self.filename} - {params}\n")
             elif self.number_of_moves < self.max_threshold:
-                with open("./between_threshold.txt", "a") as file:
+                with open("./parallel_jobs/"+measure_filename+"_between_threshold.txt", "a") as file:
                     file.write(f"{self.filename} - {params}\n")
             else:
-                with open("./over_threshold.txt", "a") as file:
+                with open("./parallel_jobs/"+measure_filename+"_over_threshold.txt", "a") as file:
                     file.write(f"{self.filename} - {params}\n")
                 
 

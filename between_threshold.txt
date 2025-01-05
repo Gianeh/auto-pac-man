@@ -1,1 +1,0 @@
-ez_map_no_g - efficieny = 0, number_of_moves = 1457, candies_eaten = 203 - alpha = 0.9, delta = 0.011111111111111108, epsilon = 0.1, lose_cost = 20000, win_cost = -10000, move_cost = 10, eat_cost = -10.0, training_power = 10, game_power = 10
