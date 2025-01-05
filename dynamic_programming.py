@@ -407,7 +407,7 @@ class Value_iterator:
 
 
 class Game:
-    def __init__(self, value_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False):
+    def __init__(self, value_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False, measure_performance=False):
         """
         Game class to run the Pacman game with the policy learned from the value iteration algorithm (requires Value_iterator instance)
 
@@ -439,6 +439,7 @@ class Game:
         self.moves_to_policy = {v: k for k, v in self.moves.items()}    
 
         self.logging = logging
+        self.measure_performance = measure_performance
 
         # Initialize the power parameter
         if power == None:
@@ -468,17 +469,37 @@ class Game:
         # Save the game parameters
         self.tile_size = tile_size
         self.fps = fps
+        
+        if not self.measure_performance:
+            # Initialize the screen
+            self.screen = self.init_screen()
 
-        # Initialize the screen
-        self.screen = self.init_screen()
+            # Game images initialization
+            self.pacman_image = None
+            self.ghost_image = None
+            self.candy_image = None
+            self.floor_image = None
+            self.wall_image = None
+            self.init_images()
 
-        # Game images initialization
-        self.pacman_image = None
-        self.ghost_image = None
-        self.candy_image = None
-        self.floor_image = None
-        self.wall_image = None
-        self.init_images()
+        # At test time, account for a minimum threshold in seconds, the number of candies eaten and the number of moves
+        if self.measure_performance:
+            self.loop_till_loss = True
+            self.logging = False
+            self.min_threshold = 600 # moves
+            self.max_threshold = 6000 # moves
+            self.candies_eaten = 0
+            self.number_of_moves = 0
+            self.efficeincy_ratio = 0
+
+            self.alpha = value_iterator.alpha
+            self.epsilon = value_iterator.epsilon
+            self.delta = value_iterator.delta
+            self.lose_cost = value_iterator.lose_cost
+            self.win_cost = value_iterator.win_cost
+            self.move_cost = value_iterator.move_cost
+            self.eat_cost = value_iterator.eat_cost
+            self.training_power = value_iterator.power
 
 
     def init_screen(self):
@@ -537,17 +558,17 @@ class Game:
         for ghost_index in range(2, self.number_of_movables):
             self.screen.blit(self.ghost_image, (self.current_state[ghost_index][0] * self.tile_size, self.current_state[ghost_index][1] * self.tile_size))
 
-
     def run(self, ghost_controlled=False, loop_till_loss=False):
         clock = pygame.time.Clock()
         running = True
 
-        # Before starting the game, display the logo for 2 seconds
-        logo = pygame.image.load("./images/logo.png")
-        logo = pygame.transform.scale(logo, (len(self.map[0]) * self.tile_size, len(self.map) * self.tile_size))
-        self.screen.blit(logo, (0, 0))
-        pygame.display.flip()
-        sleep(3)
+        if not self.measure_performance:
+            # Before starting the game, display the logo for 2 seconds
+            logo = pygame.image.load("./images/logo.png")
+            logo = pygame.transform.scale(logo, (len(self.map[0]) * self.tile_size, len(self.map) * self.tile_size))
+            self.screen.blit(logo, (0, 0))
+            pygame.display.flip()
+            sleep(3)
 
         # Randomize the initial positions of all ghosts
         for ghost_index in range(1, self.number_of_movables):
@@ -567,20 +588,32 @@ class Game:
         }
 
         while running:
-            # Draw current state every frame, so the window remains responsive 
-            self.draw_map()
-            pygame.display.flip()
+            if self.measure_performance:
+                if self.number_of_moves % 100 == 0:
+                    print(f"Simulated number of moves: {self.number_of_moves}")
+                if self.number_of_moves == self.max_threshold:
+                    self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
+                    print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    running = False
+                    clock.tick(self.fps)
+                    continue
 
-            # Collect events 
-            events = pygame.event.get()
             key_pressed = not ghost_controlled # track whether a KEYDOWN happened
 
-            for event in events:
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    # If any key was pressed, we consider it a turn
-                    key_pressed = True
+            # Draw current state every frame, so the window remains responsive 
+            if not self.measure_performance:
+                self.draw_map()
+                pygame.display.flip()
+
+                # Collect events 
+                events = pygame.event.get()
+
+                for event in events:
+                    if event.type == pygame.QUIT:
+                        running = False
+                    elif event.type == pygame.KEYDOWN:
+                        # If any key was pressed, we consider it a turn
+                        key_pressed = True
 
             # If no key was pressed, we do nothing and skip to next iteration 
             if not key_pressed:
@@ -591,35 +624,19 @@ class Game:
             # If we get here, it means a key was pressed, so we process a turn
             # Check win/lose conditions 
             if loop_till_loss:
-                # Respawn one or more candies
-                while is_terminal(self.current_state, self.number_of_movables):
-                    for candy_index in self.candies_positions:
-                        if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
-                            self.current_state[candy_index] = 1
-
-                '''
-                # Respawn a random number of candies ensuring at least one is present
-                for candy_index in self.candies_positions:
-                    if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
-                        self.current_state[candy_index] = 1
-                    # If at least one candy is present, break
-                    if sum(self.current_state[self.number_of_movables:]) > 0:
-                        break
-                    else:
-                        # Activate a random candy 
-                        candy_index = random.choice(len(self.candies_positions)) + self.number_of_movables
-                        self.current_state[candy_index] = 1
-                        # Move pacman to a random position to avoid the pacman-candy collision
-                        self.current_state[0] = self.possible_positions[random.choice(len(self.possible_positions))]
-                        while self.current_state[0] == self.candies_positions[candy_index]:
-                            self.current_state[0] = self.possible_positions[random.choice(len(self.possible_positions))]
-                        # Move ghosts to random positions (avoiding pacman position)
-                        for ghost_index in range(1, self.number_of_movables):
-                            new_ghost_position = self.possible_positions[random.choice(len(self.possible_positions))]
-                            while new_ghost_position == self.current_state[0]:
-                                new_ghost_position = self.possible_positions[random.choice(len(self.possible_positions))]
-                            self.current_state[ghost_index] = new_ghost_position
-                '''
+                # In the particular case of a single candy, respawn it and move pacman to a random position not on a ghost
+                if len(self.candies_positions) == 1 and is_terminal(self.current_state, self.number_of_movables):
+                    self.current_state[self.number_of_movables] = 1
+                    new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
+                    while new_pacman_position in self.current_state[1:] or new_pacman_position == self.candies_positions[self.number_of_movables]:
+                        new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
+                    self.current_state[0] = new_pacman_position
+                else:
+                    # Respawn one or more candies
+                    while is_terminal(self.current_state, self.number_of_movables):
+                        for candy_index in self.candies_positions:
+                            if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
+                                self.current_state[candy_index] = 1
 
             elif is_win_terminal(self.current_state, self.number_of_movables):
                 print("Game over - You won")
@@ -632,7 +649,15 @@ class Game:
 
                 continue
 
-            elif is_lose_terminal(self.current_state, self.number_of_movables):
+            if is_lose_terminal(self.current_state, self.number_of_movables):
+                # Pacman lost before the maximum threshold
+                if self.measure_performance:
+                    self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
+                    print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    running = False
+                    clock.tick(self.fps)
+                    continue
+
                 print("Game over - You lost")
                 running = False
                 sleep(2)
@@ -648,6 +673,11 @@ class Game:
             action = self.policy[state_index]
 
             next_state, eaten = pacman_move(self.current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
+
+            # Account for the number of moves
+            if self.measure_performance:
+                self.number_of_moves += 1
+                self.candies_eaten += int(eaten)
 
             if self.logging: 
                 print(f"Pacman action: {action} triggered transition from State: {self.current_state} to State: {next_state}")
@@ -750,6 +780,19 @@ class Game:
 
             # Limit the frame rate
             clock.tick(self.fps)
+
+        if self.measure_performance:
+            params = f"efficieny = {self.efficeincy_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
+            if self.number_of_moves < self.min_threshold:
+                with open("./under_threshold.txt", "a") as file:
+                    file.write(f"{self.filename} - {params}\n")
+            elif self.number_of_moves < self.max_threshold:
+                with open("./between_threshold.txt", "a") as file:
+                    file.write(f"{self.filename} - {params}\n")
+            else:
+                with open("./over_threshold.txt", "a") as file:
+                    file.write(f"{self.filename} - {params}\n")
+                
 
         # Quit the game once we exit the loop 
         pygame.quit()
