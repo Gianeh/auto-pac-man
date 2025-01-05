@@ -441,6 +441,9 @@ class Game:
         self.logging = logging
         self.measure_performance = measure_performance
 
+        # Save the map filename
+        self.map_name= value_iterator.filename
+
         # Initialize the power parameter
         if power == None:
             self.power = value_iterator.power
@@ -782,16 +785,16 @@ class Game:
             clock.tick(self.fps)
 
         if self.measure_performance:
-            params = f"efficieny = {self.efficeincy_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
+            params = f"efficiency = {self.efficeincy_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
             if self.number_of_moves < self.min_threshold:
                 with open("./parallel_jobs/"+measure_filename+"_under_threshold.txt", "a") as file:
-                    file.write(f"{self.filename} - {params}\n")
+                    file.write(f"{self.map_name} - {params}\n")
             elif self.number_of_moves < self.max_threshold:
                 with open("./parallel_jobs/"+measure_filename+"_between_threshold.txt", "a") as file:
-                    file.write(f"{self.filename} - {params}\n")
+                    file.write(f"{self.map_name} - {params}\n")
             else:
                 with open("./parallel_jobs/"+measure_filename+"_over_threshold.txt", "a") as file:
-                    file.write(f"{self.filename} - {params}\n")
+                    file.write(f"{self.map_name} - {params}\n")
                 
 
         # Quit the game once we exit the loop 
