@@ -365,7 +365,6 @@ class Value_iterator:
                     next_state, eaten = pacman_move(current_state, self.moves[pacman_action], self.number_of_movables, self.candies_positions, self.map)
                     # if this is not a valid action skip it
                     if next_state == False or (is_terminal(current_state, self.number_of_movables) and pacman_action != 4):
-                        expected_values[pacman_action] = float("inf")
                         continue
                     # next_state is incomplete, only accounts for pacman move and eating a candy
 
@@ -393,7 +392,7 @@ class Value_iterator:
                     stage_costs = [self.g(state, eaten) for state in next_states]
 
                     # penalize staying still if pac-man is not in a terminal state
-                    if pacman_action == 4 and not eaten:
+                    if pacman_action == 4 and not is_terminal(current_state, self.number_of_movables):
                         stage_costs = [cost + self.stay_penalty for cost in stage_costs]
 
                     next_state_values = [previous_value_function[tuple(s)] for s in next_states]
