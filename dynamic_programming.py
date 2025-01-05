@@ -11,7 +11,7 @@ import pygame
 from helper_functions import is_terminal, diff_norm, pacman_move, ghost_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
 
 class States_enumerator:
-    def __init__(self, map_filename="dumb_map", laod_from_txt=False, logging=False):
+    def __init__(self, map_filename="dumb_map", load_from_txt=False, logging=False):
         """
         State enumeration algorithm from a map loaded from an image or a txt file
 
@@ -532,7 +532,8 @@ class Game:
         self.screen.blit(self.pacman_image, (self.current_state[0][0] * self.tile_size, self.current_state[0][1] * self.tile_size))
 
         # Draw ghosts
-        self.screen.blit(self.first_ghost_image, (self.current_state[1][0] * self.tile_size, self.current_state[1][1] * self.tile_size))
+        if self.number_of_movables > 1:
+            self.screen.blit(self.first_ghost_image, (self.current_state[1][0] * self.tile_size, self.current_state[1][1] * self.tile_size))
         for ghost_index in range(2, self.number_of_movables):
             self.screen.blit(self.ghost_image, (self.current_state[ghost_index][0] * self.tile_size, self.current_state[ghost_index][1] * self.tile_size))
 
