@@ -24,7 +24,7 @@ class States_enumerator:
         # Save the constructor parameters
         self.filename = map_filename
 
-        if laod_from_txt:
+        if load_from_txt:
             self.map = self.create_map_from_txt(logging)
         else:
             self.map = self.create_map(Image.open("./maps/"+map_filename+".png"), logging)
