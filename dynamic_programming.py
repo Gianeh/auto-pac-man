@@ -218,7 +218,7 @@ class States_enumerator:
         return states
 
 class Value_iterator:
-    def __init__(self, enumerator, alpha=9e-1, delta=1e-1, epsilon=1, lose_cost=1e3, win_cost=-5e2, move_cost=1, eat_cost=-1e1, power=0, control_accuracy=False, logging=False, stay_penalty=1e2):
+    def __init__(self, enumerator, alpha=9e-1, delta=1e-1, epsilon=1, lose_cost=1e3, win_cost=-5e2, move_cost=1, eat_cost=-1e1, power=0, control_accuracy=False, logging=False):
         """
         Value itaration algorithm from enumerated states (requires States_enumerator instance)
 
@@ -276,9 +276,6 @@ class Value_iterator:
         self.win_cost = win_cost
         self.move_cost = move_cost
         self.eat_cost = eat_cost
-
-        # a penalty for staying still when its unnecessary
-        self.stay_penalty = stay_penalty
         
         # possible moves in a 2D grid
         self.moves = {
@@ -390,10 +387,6 @@ class Value_iterator:
 
                     # next_states contains all possible following states given the pacman action and the stochastic moves of the ghosts
                     stage_costs = [self.g(state, eaten) for state in next_states]
-
-                    # penalize staying still if pac-man is not in a terminal state
-                    if pacman_action == 4 and not is_terminal(current_state, self.number_of_movables):
-                        stage_costs = [cost + self.stay_penalty for cost in stage_costs]
 
                     next_state_values = [previous_value_function[tuple(s)] for s in next_states]
 
