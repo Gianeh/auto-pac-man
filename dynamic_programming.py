@@ -565,6 +565,12 @@ class Game:
         clock = pygame.time.Clock()
         running = True
 
+        # reset measures for multiple tests
+        if self.measure_performance:
+            self.candies_eaten = 0
+            self.number_of_moves = 0
+            self.efficeincy_ratio = 0
+
         if not self.measure_performance:
             # Before starting the game, display the logo for 2 seconds
             logo = pygame.image.load("./images/logo.png")
@@ -593,10 +599,10 @@ class Game:
         while running:
             if self.measure_performance:
                 if self.number_of_moves % 100 == 0:
-                    print(f"Simulated number of moves: {self.number_of_moves}")
+                    if measure_filename == "": print(f"Simulated number of moves: {self.number_of_moves}")
                 if self.number_of_moves == self.max_threshold:
                     self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
-                    print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    if measure_filename == "": print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
                     clock.tick(self.fps)
                     continue
@@ -628,7 +634,7 @@ class Game:
             # Check win/lose conditions 
             if loop_till_loss:
                 # In the particular case of a single candy, respawn it and move pacman to a random position not on a ghost
-                if len(self.candies_positions) == 1 and is_terminal(self.current_state, self.number_of_movables):
+                if len(self.candies_positions) == 1 and is_win_terminal(self.current_state, self.number_of_movables):
                     self.current_state[self.number_of_movables] = 1
                     new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
                     while new_pacman_position in self.current_state[1:] or new_pacman_position == self.candies_positions[self.number_of_movables]:
@@ -636,7 +642,7 @@ class Game:
                     self.current_state[0] = new_pacman_position
                 else:
                     # Respawn one or more candies
-                    while is_terminal(self.current_state, self.number_of_movables):
+                    while is_win_terminal(self.current_state, self.number_of_movables):
                         for candy_index in self.candies_positions:
                             if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
                                 self.current_state[candy_index] = 1
@@ -656,7 +662,7 @@ class Game:
                 # Pacman lost before the maximum threshold
                 if self.measure_performance:
                     self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
-                    print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    if measure_filename == "": print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
                     clock.tick(self.fps)
                     continue

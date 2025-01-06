@@ -1,7 +1,7 @@
 from dynamic_programming import States_enumerator, Value_iterator, Game
 
 # Grid search for hyperparameter tuning
-maps = ["ez_map"]
+maps = ["ezz_map"]
 epsilons = [1, 0.1]
 alphas = [0.7, 0.9]
 lose_costs = [10000, 20000, 50000]
