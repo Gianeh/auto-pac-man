@@ -25,7 +25,7 @@ def pacman_move(state, action, number_of_movables, candies_positions, map):
         new_state = [new_position] + state[1:]
         # candy eaten check
         for candy_index in range(number_of_movables, len(state)):
-            if new_position == candies_positions[candy_index]:
+            if new_position == candies_positions[candy_index] and state[candy_index] == 1:
                 new_state[candy_index] = 0
                 eaten=True
 
