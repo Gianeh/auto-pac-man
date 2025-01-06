@@ -6,12 +6,12 @@ from dynamic_programming import States_enumerator, Value_iterator, Game
 import os
 from multiprocessing import Manager
 
-maps = ["ezz_map"]
+maps = ["ez_map"]
 epsilons = [1, 0.1]
 alphas = [0.7, 0.9]
 lose_costs = [10000, 20000, 50000]
 win_costs = [-10000, -20000, -50000]
-move_costs = [1, 10, 100]
+move_costs = [10, 100]
 eat_costs = [-10, -100]
 training_powers = [0, 10]
 game_powers = [0,2,4,6,8,10]
