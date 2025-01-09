@@ -1,4 +1,4 @@
-# Classes for Value iteration algorithm and states enumeration
+# Classes for Value iteration algorithm and states enumeration in Dynamic Programming Paradigm
 from PIL import Image
 from math import comb as binomial
 from math import prod
@@ -6,7 +6,7 @@ from pprint import pprint
 from sys import getsizeof
 from itertools import product
 from numpy import argmin, random
-from time import time, sleep
+from time import sleep
 import pygame
 from helper_functions import is_terminal, diff_norm, pacman_move, ghost_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
 
@@ -220,7 +220,7 @@ class States_enumerator:
 class Value_iterator:
     def __init__(self, enumerator, alpha=9e-1, delta=1e-1, epsilon=1, lose_cost=1e3, win_cost=-5e2, move_cost=1, eat_cost=-1e1, power=0, control_accuracy=False, logging=False):
         """
-        Value itaration algorithm from enumerated states (requires States_enumerator instance)
+        Value iteration algorithm from enumerated states (requires States_enumerator instance)
 
         enumerator:     States_enumerator instance, built as States_enumerator(map_filename, logging)
 
@@ -710,7 +710,8 @@ class Game:
                 print(f"Pacman action: {action} triggered transition from State: {self.current_state} to State: {next_state}")
 
             # Update Pac-Man image
-            self.pacman_image = pygame.transform.scale(pacman_images[action], (self.tile_size, self.tile_size))
+            if not self.measure_performance:
+                self.pacman_image = pygame.transform.scale(pacman_images[action], (self.tile_size, self.tile_size))
 
             # If the action was invalid, skip (ignore the pressed key)
             if not next_state:
