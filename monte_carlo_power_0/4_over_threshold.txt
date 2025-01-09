@@ -1,0 +1,6 @@
+efficiency = 0.063, stage_cost_sum = -5476650
+efficiency = 0.059833333333333336, stage_cost_sum = -5036380
+efficiency = 0.06183333333333333, stage_cost_sum = -5996240
+efficiency = 0.06183333333333333, stage_cost_sum = -5436500
+efficiency = 0.06016666666666667, stage_cost_sum = -5626160
+efficiency = 0.06166666666666667, stage_cost_sum = -5956240
