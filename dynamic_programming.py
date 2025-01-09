@@ -407,7 +407,7 @@ class Value_iterator:
 
 
 class Game:
-    def __init__(self, value_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False, measure_performance=False):
+    def __init__(self, value_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False, measure_performance=False, monte_carlo=False): 
         """
         Game class to run the Pacman game with the policy learned from the value iteration algorithm (requires Value_iterator instance)
 
@@ -426,6 +426,10 @@ class Game:
                         and so on...
 
         logging:        Flag to enable logging of the game steps
+
+        measure_performance: Flag to enable the performance measurement of the policy
+
+        monte_carlo:    Flag to enable the Monte Carlo simulation of the game
         """
         # Save the parameters from the value iterator
         self.map = value_iterator.map
@@ -440,6 +444,7 @@ class Game:
 
         self.logging = logging
         self.measure_performance = measure_performance
+        self.monte_carlo = monte_carlo
 
         # Save the map filename
         self.map_name= value_iterator.filename
@@ -493,7 +498,7 @@ class Game:
             self.max_threshold = 6000 # moves
             self.candies_eaten = 0
             self.number_of_moves = 0
-            self.efficeincy_ratio = 0
+            self.efficiency_ratio = 0
 
             self.alpha = value_iterator.alpha
             self.epsilon = value_iterator.epsilon
@@ -569,7 +574,7 @@ class Game:
         if self.measure_performance:
             self.candies_eaten = 0
             self.number_of_moves = 0
-            self.efficeincy_ratio = 0
+            self.efficiency_ratio = 0
 
         if not self.measure_performance:
             # Before starting the game, display the logo for 2 seconds
@@ -601,8 +606,8 @@ class Game:
                 if self.number_of_moves % 100 == 0:
                     if measure_filename == "": print(f"Simulated number of moves: {self.number_of_moves}")
                 if self.number_of_moves == self.max_threshold:
-                    self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
-                    if measure_filename == "": print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    self.efficiency_ratio = self.candies_eaten / self.number_of_moves
+                    if measure_filename == "": print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
                     clock.tick(self.fps)
                     continue
@@ -661,8 +666,8 @@ class Game:
             if is_lose_terminal(self.current_state, self.number_of_movables):
                 # Pacman lost before the maximum threshold
                 if self.measure_performance:
-                    self.efficeincy_ratio = self.candies_eaten / self.number_of_moves
-                    if measure_filename == "": print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficeincy_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    self.efficiency_ratio = self.candies_eaten / self.number_of_moves
+                    if measure_filename == "": print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
                     clock.tick(self.fps)
                     continue
@@ -790,8 +795,8 @@ class Game:
             # Limit the frame rate
             clock.tick(self.fps)
 
-        if self.measure_performance:
-            params = f"efficiency = {self.efficeincy_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
+        if self.measure_performance and not self.monte_carlo:
+            params = f"efficiency = {self.efficiency_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
             if self.number_of_moves < self.min_threshold:
                 with open("./parallel_jobs/"+measure_filename+"_under_threshold.txt", "a") as file:
                     file.write(f"{self.map_name} - {params}\n")
@@ -801,7 +806,17 @@ class Game:
             else:
                 with open("./parallel_jobs/"+measure_filename+"_over_threshold.txt", "a") as file:
                     file.write(f"{self.map_name} - {params}\n")
-                
+
+        elif self.measure_performance and self.monte_carlo:
+            if self.number_of_moves < self.min_threshold:
+                with open("./monte_carlo/"+measure_filename+"_under_threshold.txt", "a") as file:
+                    file.write(f"{self.efficiency_ratio}\n")
+            elif self.number_of_moves < self.max_threshold:
+                with open("./monte_carlo/"+measure_filename+"_between_threshold.txt", "a") as file:
+                    file.write(f"{self.efficiency_ratio}\n")
+            else:
+                with open("./monte_carlo/"+measure_filename+"_over_threshold.txt", "a") as file:
+                    file.write(f"{self.efficiency_ratio}\n")
 
         # Quit the game once we exit the loop 
         pygame.quit()
