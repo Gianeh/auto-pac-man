@@ -320,8 +320,9 @@ class Policy_iterator:
                     self.renderer.render(current_state, action)
                 current_state = self.initial_state.copy()
                 # randomize pacman position avoiding ghosts
+                current_state[0] = self.possible_positions[random.choice(len(self.possible_positions))]
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
-                    current_state[0] = random.choice(self.possible_positions)
+                    current_state[0] = self.possible_positions[random.choice(len(self.possible_positions))]
                 if self.logging: print(f"Episode {self.episodes}")
 
 
