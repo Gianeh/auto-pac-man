@@ -441,9 +441,10 @@ class Game:
         self.candies_positions = value_iterator.candies_positions
         self.moves = value_iterator.moves
         self.moves_to_policy = {v: k for k, v in self.moves.items()}    
+        self.g = value_iterator.g
 
         self.logging = logging
-        self.measure_performance = measure_performance
+        self.measure_performance = measure_performance or monte_carlo
         self.monte_carlo = monte_carlo
 
         # Save the map filename
@@ -499,6 +500,7 @@ class Game:
             self.candies_eaten = 0
             self.number_of_moves = 0
             self.efficiency_ratio = 0
+            self.stage_cost_sum = 0
 
             self.alpha = value_iterator.alpha
             self.epsilon = value_iterator.epsilon
@@ -566,6 +568,27 @@ class Game:
         for ghost_index in range(2, self.number_of_movables):
             self.screen.blit(self.ghost_image, (self.current_state[ghost_index][0] * self.tile_size, self.current_state[ghost_index][1] * self.tile_size))
 
+
+    def respawn_candies(self, random_spawn=False):
+        while is_win_terminal(self.current_state, self.number_of_movables):
+            if len(self.candies_positions) == 1:
+                self.current_state[self.number_of_movables] = 1
+                new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
+                while new_pacman_position in self.current_state[1:] or new_pacman_position == self.candies_positions[self.number_of_movables]:
+                    new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
+                self.current_state[0] = new_pacman_position
+            else:
+                for candy_index in self.candies_positions:
+                    if not random_spawn:
+                        # Respawn all candies a part from the last one eaten
+                        if self.current_state[0] != self.candies_positions[candy_index]:
+                            self.current_state[candy_index] = 1
+                    else:
+                        # Randomly respawn one or more candies
+                        if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
+                            self.current_state[candy_index] = 1
+
+
     def run(self, ghost_controlled=False, loop_till_loss=False, measure_filename=""):
         clock = pygame.time.Clock()
         running = True
@@ -575,6 +598,7 @@ class Game:
             self.candies_eaten = 0
             self.number_of_moves = 0
             self.efficiency_ratio = 0
+            self.stage_cost_sum = 0
 
         if not self.measure_performance:
             # Before starting the game, display the logo for 2 seconds
@@ -584,13 +608,14 @@ class Game:
             pygame.display.flip()
             sleep(3)
 
-        # Randomize the initial positions of all ghosts
-        for ghost_index in range(1, self.number_of_movables):
-            new_ghost_position = self.possible_positions[random.choice(len(self.possible_positions))]
-            # Avoid placing a ghost on pacman's position
-            while new_ghost_position == self.current_state[0]:
+        if not (self.monte_carlo or self.measure_performance):
+            # Randomize the initial positions of all ghosts
+            for ghost_index in range(1, self.number_of_movables):
                 new_ghost_position = self.possible_positions[random.choice(len(self.possible_positions))]
-            self.current_state[ghost_index] = new_ghost_position
+                # Avoid placing a ghost on pacman's position
+                while new_ghost_position == self.current_state[0]:
+                    new_ghost_position = self.possible_positions[random.choice(len(self.possible_positions))]
+                self.current_state[ghost_index] = new_ghost_position
 
         # Dictionary of pacman images based on action index
         pacman_images = {
@@ -638,19 +663,7 @@ class Game:
             # If we get here, it means a key was pressed, so we process a turn
             # Check win/lose conditions 
             if loop_till_loss:
-                # In the particular case of a single candy, respawn it and move pacman to a random position not on a ghost
-                if len(self.candies_positions) == 1 and is_win_terminal(self.current_state, self.number_of_movables):
-                    self.current_state[self.number_of_movables] = 1
-                    new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
-                    while new_pacman_position in self.current_state[1:] or new_pacman_position == self.candies_positions[self.number_of_movables]:
-                        new_pacman_position = self.possible_positions[random.choice(len(self.possible_positions))]
-                    self.current_state[0] = new_pacman_position
-                else:
-                    # Respawn one or more candies
-                    while is_win_terminal(self.current_state, self.number_of_movables):
-                        for candy_index in self.candies_positions:
-                            if random.choice(2) == 1 and self.current_state[0] != self.candies_positions[candy_index]:
-                                self.current_state[candy_index] = 1
+                self.respawn_candies(random_spawn=not(self.monte_carlo or self.measure_performance))
 
             elif is_win_terminal(self.current_state, self.number_of_movables):
                 print("Game over - You won")
@@ -792,6 +805,11 @@ class Game:
             # Update current state
             self.current_state = next_state
 
+            # Accumuate the stage cost
+            if self.measure_performance:
+                self.stage_cost_sum += self.g(self.current_state, eaten)
+
+
             # Limit the frame rate
             clock.tick(self.fps)
 
@@ -807,16 +825,17 @@ class Game:
                 with open("./parallel_jobs/"+measure_filename+"_over_threshold.txt", "a") as file:
                     file.write(f"{self.map_name} - {params}\n")
 
-        elif self.measure_performance and self.monte_carlo:
+        elif self.monte_carlo:
+            performance_params = f"efficiency = {self.efficiency_ratio}, stage_cost_sum = {self.stage_cost_sum}"
             if self.number_of_moves < self.min_threshold:
                 with open("./monte_carlo/"+measure_filename+"_under_threshold.txt", "a") as file:
-                    file.write(f"{self.efficiency_ratio}\n")
+                    file.write(f"{performance_params}\n")
             elif self.number_of_moves < self.max_threshold:
                 with open("./monte_carlo/"+measure_filename+"_between_threshold.txt", "a") as file:
-                    file.write(f"{self.efficiency_ratio}\n")
+                    file.write(f"{performance_params}\n")
             else:
                 with open("./monte_carlo/"+measure_filename+"_over_threshold.txt", "a") as file:
-                    file.write(f"{self.efficiency_ratio}\n")
+                    file.write(f"{performance_params}\n")
 
         # Quit the game once we exit the loop 
         pygame.quit()
