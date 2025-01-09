@@ -5,9 +5,11 @@ from math import prod
 from pprint import pprint
 from itertools import product
 from numpy import argmax, random
+import numpy as np
 from random import choices
 from time import sleep
 import pygame
+import os
 from helper_functions import is_terminal, diff_norm, pacman_move, ghost_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
 
 class State_initializer:
@@ -324,7 +326,20 @@ class Policy_iterator:
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = self.possible_positions[random.choice(len(self.possible_positions))]
                 if self.logging: print(f"Episode {self.episodes}")
+    
+    def store_Q(self):
+        # check if the Q_tables directory exists
+        os.makedirs("./Q_tables", exist_ok=True)
 
+        with open("./Q_tables/"+self.filename+".txt", "w") as file:
+            for key, value in self.Q.items():
+                file.write(f"{key}:{value}\n")
+
+    def load_Q(self):
+        with open("./Q_tables/"+self.filename+".txt", "r") as file:
+            for line in file:
+                key, value = line.split(":")
+                self.Q[eval(key)] = float(value)
 
 
 
@@ -426,3 +441,112 @@ class Renderer:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     exit()
+
+class Game:
+    def __init__(self, policy_iterator, pretrained=False, tile_size=50, fps=10, logging=False, power=10):
+        """
+        Game class for running the trained policy iteration algorithm
+
+        policy_iterator:    Policy_iterator instance
+
+        pretrained:         Flag to load a pretrained Q function
+
+        tile_size:          Size of the tiles in the game window
+
+        fps:                Frames per second
+
+        logging:            Flag to enable logging of the algorithm steps
+
+        power:              Power parameter for the ghost moves, the higher the value the more the ghosts will try to get closer to pacman, power = 0 means the ghosts move randomly
+        """
+        self.map = policy_iterator.map
+        self.initial_state = policy_iterator.initial_state
+        self.number_of_movables = policy_iterator.number_of_movables
+        self.candies_positions = policy_iterator.candies_positions
+        self.possible_positions = policy_iterator.possible_positions
+        self.number_of_ghosts = policy_iterator.number_of_ghosts
+        self.power = power
+
+        # save game parameters
+        self.tile_size = tile_size
+        self.fps = fps
+
+        # possible moves in a 2D grid
+        self.moves = {
+            0: (0, -1), # up
+            1: (0, 1),  # down
+            2: (-1, 0), # left
+            3: (1, 0),  # right
+            4: (0, 0)   # stay
+        }
+
+        # Initialize the Q function
+        self.Q = policy_iterator.Q
+
+        # Logging flag
+        self.logging = logging
+
+        # Renderer object 
+        self.renderer = Renderer(policy_iterator, tile_size, fps, logging)
+
+        if pretrained:
+            policy_iterator.load_Q()
+
+    def run(self):
+        if self.logging: print("Running the game...\n")
+        action = 0
+        current_state = self.initial_state.copy()
+        next_state = self.initial_state.copy()
+        running = True
+
+        while running:
+            # Render the game
+            self.renderer.render(current_state, action)
+
+            possible_moves = [move for move in self.moves if self.map[current_state[0][1] + self.moves[move][1]][current_state[0][0] + self.moves[move][0]] != 1]
+            action_argmax = possible_moves[0]
+            for action in possible_moves:
+                if self.Q.get((tuple(current_state), action), random.rand()) > self.Q.get((tuple(current_state), action_argmax), random.rand()):
+                    action_argmax = action
+            next_state, eaten = pacman_move(current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
+    
+            # Stochastic ghost moves and their probabilities
+            possible_ghosts_actions = []
+            ghosts_actions_pmfs = []
+            for ghost_index in range(1, self.number_of_movables):
+                possible_ghost_action_list , pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
+                possible_ghosts_actions.append(possible_ghost_action_list)
+                ghosts_actions_pmfs.append(pmf)
+
+            permuted_actions = [list(p) for p in product(*possible_ghosts_actions)]
+            permuted_pmfs = [list(p) for p in product(*ghosts_actions_pmfs)]
+            ghosts_action_permutations_pmfs = [prod(pmfs) for pmfs in permuted_pmfs]
+
+
+            next_states = []
+            for actions in permuted_actions:
+                ghosts_state = []
+                for i in range(len(actions)):
+                    ghosts_state.append((actions[i][0] + next_state[1+i][0], actions[i][1] + next_state[1+i][1]))
+                next_states.append([next_state[0]] + ghosts_state + next_state[self.number_of_movables:])
+            
+            next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
+
+            if is_terminal(next_state, self.number_of_movables):
+                running = False
+                if self.logging: print("Pacman won!")
+                self.renderer.render(next_state, action)
+                running = False
+                continue
+
+            if is_lose_terminal(next_state, self.number_of_movables):
+                running = False
+                if self.logging: print("Pacman lost!")
+                self.renderer.render(next_state, action)
+                running = False
+                continue
+
+
+            current_state = next_state
+
+   
