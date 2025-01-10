@@ -150,7 +150,7 @@ class State_initializer:
     
 
 class Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, alpha=1e-1, gamma=9e-1, epsilon=1e-1, lose_reward=-1e3, win_reward=5e2, move_reward=-1, eat_reward=1e1, power=10, logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, alpha=1e-1, gamma=9e-1, epsilon=1e-1, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
         """
         Generalized Policy iteration algorithm (requires State_initializer instance)
 
@@ -272,7 +272,7 @@ class Policy_iterator:
         action = 0  # action placeholder for renderer object
         current_state = self.initial_state.copy()
         next_state = self.initial_state.copy()
-        if self.logging and self.episodes % 100 == 0: 
+        if self.logging: 
             print(f"Episode {self.episodes}")
         
         is_paused = False  # Pause state flag
@@ -368,7 +368,7 @@ class Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging and self.episodes % 100 == 0: 
+                if self.logging: 
                     print(f"Episode {self.episodes}")
 
     
@@ -972,13 +972,13 @@ class Game:
         elif self.monte_carlo:
             performance_params = f"efficiency = {self.efficiency_ratio}, stage_cost_sum = {self.reward_sum}"
             if self.number_of_moves < self.min_threshold:
-                with open("./monte_carlo/"+measure_filename+"_under_threshold.txt", "a") as file:
+                with open("./monte_carlo_RL/"+measure_filename+"_under_threshold.txt", "a") as file:
                     file.write(f"{performance_params}\n")
             elif self.number_of_moves < self.max_threshold:
-                with open("./monte_carlo/"+measure_filename+"_between_threshold.txt", "a") as file:
+                with open("./monte_carlo_RL/"+measure_filename+"_between_threshold.txt", "a") as file:
                     file.write(f"{performance_params}\n")
             else:
-                with open("./monte_carlo/"+measure_filename+"_over_threshold.txt", "a") as file:
+                with open("./monte_carlo_RL/"+measure_filename+"_over_threshold.txt", "a") as file:
                     file.write(f"{performance_params}\n")
 
         # Quit the game once we exit the loop 

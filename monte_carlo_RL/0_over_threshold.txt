@@ -1,0 +1,2 @@
+efficiency = 0.0021666666666666666, stage_cost_sum = -15885.0
+efficiency = 0.001, stage_cost_sum = -28421.0
