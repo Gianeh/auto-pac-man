@@ -272,7 +272,7 @@ class Policy_iterator:
         action = 0  # action placeholder for renderer object
         current_state = self.initial_state.copy()
         next_state = self.initial_state.copy()
-        if self.logging: 
+        if self.logging and self.episodes % 100 == 0: 
             print(f"Episode {self.episodes}")
         
         is_paused = False  # Pause state flag
@@ -368,7 +368,7 @@ class Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging: 
+                if self.logging and self.episodes % 100 == 0: 
                     print(f"Episode {self.episodes}")
 
     
