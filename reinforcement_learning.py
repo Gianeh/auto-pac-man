@@ -264,27 +264,64 @@ class Policy_iterator:
 
         return action_argmax
 
-    def run(self):
-        if self.logging: print(f"Running Policy Iteration algorithm for {self.max_episodes} episodes...\n")
 
-        action = 0 # action placeholder for renderer object
+    def run(self):
+        if self.logging: 
+            print(f"Running Policy Iteration algorithm for {self.max_episodes} episodes...\n")
+
+        action = 0  # action placeholder for renderer object
         current_state = self.initial_state.copy()
         next_state = self.initial_state.copy()
-        if self.logging: print(f"Episode {self.episodes}")
+        if self.logging: 
+            print(f"Episode {self.episodes}")
+        
+        is_paused = False  # Pause state flag
+        
         while self.episodes <= self.max_episodes:
-
+            # Check if a key was pressed to lower or increase the fps of the renderer
+            if self.renderer is not None:
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_UP:
+                            self.renderer.fps += 50
+                        elif event.key == pygame.K_DOWN:
+                            self.renderer.fps -= 50
+                            if self.renderer.fps <= 0:
+                                self.renderer.fps = 1
+                        elif event.key == pygame.K_p:  # Toggle pause
+                            is_paused = not is_paused
+            
+            # If paused, skip game updates and slow the loop
+            if is_paused:
+                if self.renderer is not None:
+                    pygame.time.Clock().tick(10)  # Slow loop to save CPU
+                continue
+            
             # Render the training
             if self.renderer is not None:
                 self.renderer.render(current_state, action)
-
+            
+            # Policy Iteration logic
             action = self.pi(tuple(current_state))
-            next_state, eaten = pacman_move(current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
+            next_state, eaten = pacman_move(
+                current_state, 
+                self.moves[action], 
+                self.number_of_movables, 
+                self.candies_positions, 
+                self.map
+            )
             
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
             for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list , pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
+                possible_ghost_action_list, pmf = ghost_move_manhattan(
+                    next_state, 
+                    ghost_index, 
+                    self.moves, 
+                    self.map, 
+                    self.power
+                )
                 possible_ghosts_actions.append(possible_ghost_action_list)
                 ghosts_actions_pmfs.append(pmf)
 
@@ -292,12 +329,13 @@ class Policy_iterator:
             permuted_pmfs = [list(p) for p in product(*ghosts_actions_pmfs)]
             ghosts_action_permutations_pmfs = [prod(pmfs) for pmfs in permuted_pmfs]
 
-
             next_states = []
             for actions in permuted_actions:
                 ghosts_state = []
                 for i in range(len(actions)):
-                    ghosts_state.append((actions[i][0] + next_state[1+i][0], actions[i][1] + next_state[1+i][1]))
+                    ghosts_state.append(
+                        (actions[i][0] + next_state[1 + i][0], actions[i][1] + next_state[1 + i][1])
+                    )
                 next_states.append([next_state[0]] + ghosts_state + next_state[self.number_of_movables:])
             
             next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
@@ -305,12 +343,20 @@ class Policy_iterator:
 
             # Q function update
             if is_terminal(next_state, self.number_of_movables):
-                next_possible_moves = [4]   # stay
+                next_possible_moves = [4]  # stay
             else:
-                next_possible_moves = [move for move in self.moves if self.map[next_state[0][1] + self.moves[move][1]][next_state[0][0] + self.moves[move][0]] != 1]
+                next_possible_moves = [
+                    move 
+                    for move in self.moves 
+                    if self.map[next_state[0][1] + self.moves[move][1]][next_state[0][0] + self.moves[move][0]] != 1
+                ]
 
             self.Q[(tuple(current_state), action)] = self.Q.get((tuple(current_state), action), 0) + \
-                self.alpha * (reward + self.gamma * max([self.Q.get((tuple(next_state), action), 0) for action in next_possible_moves]) - self.Q.get((tuple(current_state), action), 0))
+                self.alpha * (
+                    reward + 
+                    self.gamma * max([self.Q.get((tuple(next_state), action), 0) for action in next_possible_moves]) - 
+                    self.Q.get((tuple(current_state), action), 0)
+                )
             
             current_state = next_state
             if is_terminal(current_state, self.number_of_movables):
@@ -318,11 +364,13 @@ class Policy_iterator:
                 if self.renderer is not None:
                     self.renderer.render(current_state, action)
                 current_state = self.initial_state.copy()
-                # randomize pacman position avoiding ghosts
+                # Randomize pacman position avoiding ghosts
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging: print(f"Episode {self.episodes}")
+                if self.logging: 
+                    print(f"Episode {self.episodes}")
+
     
     def store_Q(self):
         # check if the Q_tables directory exists
@@ -403,8 +451,11 @@ class Renderer:
         pygame.display.flip()
         sleep(3)
 
-    def clock_tick(self):
-        self.clock.tick(self.fps)
+    def clock_tick(self, fps=None):
+        if fps is not None:
+            self.clock.tick(fps)
+        else:
+            self.clock.tick(self.fps)
 
     def render(self, state, action):
         # Draw walls and floors
@@ -681,6 +732,7 @@ class Game:
                 self.current_state[ghost_index] = new_ghost_position
         
         action = 0
+        is_paused = False
 
         if not self.measure_performance:
             # Before starting the game, display the logo 
@@ -711,6 +763,15 @@ class Game:
                     elif event.type == pygame.KEYDOWN:
                         # If any key was pressed, we consider it a turn
                         key_pressed = True
+                        # If the key pressed was the pause key, we toggle the pause state
+                        if event.key == pygame.K_p:
+                            is_paused = not is_paused
+                            if self.logging: print(f"Game paused: {is_paused}")
+                
+                # If paused, skip game updates and slow the loop
+                if is_paused:
+                    self.renderer.clock_tick(10)  # Slow loop to save CPU
+                    continue
 
             # If no key was pressed, we do nothing and skip to next iteration 
             if not key_pressed:
@@ -922,8 +983,3 @@ class Game:
 
         # Quit the game once we exit the loop 
         pygame.quit()
-
-            
-
-   
-    
