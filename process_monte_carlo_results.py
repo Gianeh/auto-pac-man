@@ -4,7 +4,7 @@ import os
 
 game_powers = set()
 thresholds = ["under", "between", "over"]
-for filename in os.listdir("./monte_carlo"):
+for filename in os.listdir("./monte_carlo_RL"):
     if filename.endswith(".log"):
         continue
     game_powers.add(int(filename.split("_")[0]))
@@ -16,9 +16,9 @@ efficiencies = {game_power: [] for game_power in game_powers}
 stage_costs = {game_power: [] for game_power in game_powers}
 for game_power in game_powers:
     for threshold in thresholds:
-        if not os.path.exists(f"./monte_carlo/{str(game_power)}_{threshold}_threshold.txt"):
+        if not os.path.exists(f"./monte_carlo_RL/{str(game_power)}_{threshold}_threshold.txt"):
             continue
-        with open(f"./monte_carlo/{str(game_power)}_{threshold}_threshold.txt", "r") as f:
+        with open(f"./monte_carlo_RL/{str(game_power)}_{threshold}_threshold.txt", "r") as f:
             for line in f.readlines():
                 efficiency = float(line.split(",")[0].split("= ")[1])
                 stage_cost = float(line.split(",")[1].split("= ")[1])

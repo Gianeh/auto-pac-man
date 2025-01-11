@@ -150,7 +150,7 @@ class State_initializer:
     
 
 class Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, alpha=1e-1, gamma=9e-1, epsilon=1e-1, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e-1, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
         """
         Generalized Policy iteration algorithm (requires State_initializer instance)
 
@@ -210,6 +210,8 @@ class Policy_iterator:
 
         # Initialize the Q function
         self.Q = {}
+        if pretrained:
+            self.load_Q()
 
         self.episodes = 1
 
@@ -283,9 +285,9 @@ class Policy_iterator:
                 for event in pygame.event.get():
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_UP:
-                            self.renderer.fps += 50
+                            self.renderer.fps += 25
                         elif event.key == pygame.K_DOWN:
-                            self.renderer.fps -= 50
+                            self.renderer.fps -= 25
                             if self.renderer.fps <= 0:
                                 self.renderer.fps = 1
                         elif event.key == pygame.K_p:  # Toggle pause
@@ -303,25 +305,13 @@ class Policy_iterator:
             
             # Policy Iteration logic
             action = self.pi(tuple(current_state))
-            next_state, eaten = pacman_move(
-                current_state, 
-                self.moves[action], 
-                self.number_of_movables, 
-                self.candies_positions, 
-                self.map
-            )
+            next_state, eaten = pacman_move(current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
             
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
             for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list, pmf = ghost_move_manhattan(
-                    next_state, 
-                    ghost_index, 
-                    self.moves, 
-                    self.map, 
-                    self.power
-                )
+                possible_ghost_action_list, pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
                 possible_ghosts_actions.append(possible_ghost_action_list)
                 ghosts_actions_pmfs.append(pmf)
 
@@ -333,9 +323,7 @@ class Policy_iterator:
             for actions in permuted_actions:
                 ghosts_state = []
                 for i in range(len(actions)):
-                    ghosts_state.append(
-                        (actions[i][0] + next_state[1 + i][0], actions[i][1] + next_state[1 + i][1])
-                    )
+                    ghosts_state.append((actions[i][0] + next_state[1 + i][0], actions[i][1] + next_state[1 + i][1]))
                 next_states.append([next_state[0]] + ghosts_state + next_state[self.number_of_movables:])
             
             next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
@@ -345,18 +333,10 @@ class Policy_iterator:
             if is_terminal(next_state, self.number_of_movables):
                 next_possible_moves = [4]  # stay
             else:
-                next_possible_moves = [
-                    move 
-                    for move in self.moves 
-                    if self.map[next_state[0][1] + self.moves[move][1]][next_state[0][0] + self.moves[move][0]] != 1
-                ]
+                next_possible_moves = [move for move in self.moves if self.map[next_state[0][1] + self.moves[move][1]][next_state[0][0] + self.moves[move][0]] != 1]
 
             self.Q[(tuple(current_state), action)] = self.Q.get((tuple(current_state), action), 0) + \
-                self.alpha * (
-                    reward + 
-                    self.gamma * max([self.Q.get((tuple(next_state), action), 0) for action in next_possible_moves]) - 
-                    self.Q.get((tuple(current_state), action), 0)
-                )
+                self.alpha * (reward + self.gamma * max([self.Q.get((tuple(next_state), next_action), 0) for next_action in next_possible_moves]) - self.Q.get((tuple(current_state), action), 0))
             
             current_state = next_state
             if is_terminal(current_state, self.number_of_movables):
@@ -483,127 +463,8 @@ class Renderer:
         for ghost_index in range(2, self.number_of_movables):
             self.screen.blit(self.ghost_image, (state[ghost_index][0] * self.tile_size, state[ghost_index][1] * self.tile_size))
         
-        
         pygame.display.flip()
         self.clock.tick(self.fps)
-
-
-"""
-
-class Game:
-    def __init__(self, policy_iterator, pretrained=False, tile_size=50, fps=10, logging=False, power=10):
-        
-        Game class for running the trained policy iteration algorithm
-
-        policy_iterator:    Policy_iterator instance
-
-        pretrained:         Flag to load a pretrained Q function
-
-        tile_size:          Size of the tiles in the game window
-
-        fps:                Frames per second
-
-        logging:            Flag to enable logging of the algorithm steps
-
-        power:              Power parameter for the ghost moves, the higher the value the more the ghosts will try to get closer to pacman, power = 0 means the ghosts move randomly
-        
-        self.map = policy_iterator.map
-        self.initial_state = policy_iterator.initial_state
-        self.number_of_movables = policy_iterator.number_of_movables
-        self.candies_positions = policy_iterator.candies_positions
-        self.possible_positions = policy_iterator.possible_positions
-        self.number_of_ghosts = policy_iterator.number_of_ghosts
-        self.power = power
-
-        # save game parameters
-        self.tile_size = tile_size
-        self.fps = fps
-
-        # possible moves in a 2D grid
-        self.moves = {
-            0: (0, -1), # up
-            1: (0, 1),  # down
-            2: (-1, 0), # left
-            3: (1, 0),  # right
-            4: (0, 0)   # stay
-        }
-
-        if pretrained:
-            policy_iterator.load_Q()
-
-        # Initialize the Q function
-        self.Q = policy_iterator.Q
-
-        # check if the dictionary is empty
-        if not self.Q:
-            raise ValueError("The Q function is empty. Please run the policy iteration algorithm first.")
-
-
-        # Logging flag
-        self.logging = logging
-
-        # Renderer object 
-        self.renderer = Renderer(policy_iterator, tile_size, fps, logging)
-
-    def run(self):
-        if self.logging: print("Running the game...\n")
-        action = 0
-        current_state = self.initial_state.copy()
-        next_state = self.initial_state.copy()
-        running = True
-
-        while running:
-
-            # Render the game
-            self.renderer.render(current_state, action)
-
-            possible_moves = [move for move in self.moves if self.map[current_state[0][1] + self.moves[move][1]][current_state[0][0] + self.moves[move][0]] != 1]
-            action = possible_moves[0]
-
-            for move in possible_moves:
-                if self.Q.get((tuple(current_state), move), random()) > self.Q.get((tuple(current_state), action), random()):
-                    action = move
-            next_state, eaten = pacman_move(current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
-    
-            # Stochastic ghost moves and their probabilities
-            possible_ghosts_actions = []
-            ghosts_actions_pmfs = []
-            for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list , pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
-                possible_ghosts_actions.append(possible_ghost_action_list)
-                ghosts_actions_pmfs.append(pmf)
-
-            permuted_actions = [list(p) for p in product(*possible_ghosts_actions)]
-            permuted_pmfs = [list(p) for p in product(*ghosts_actions_pmfs)]
-            ghosts_action_permutations_pmfs = [prod(pmfs) for pmfs in permuted_pmfs]
-
-
-            next_states = []
-            for actions in permuted_actions:
-                ghosts_state = []
-                for i in range(len(actions)):
-                    ghosts_state.append((actions[i][0] + next_state[1+i][0], actions[i][1] + next_state[1+i][1]))
-                next_states.append([next_state[0]] + ghosts_state + next_state[self.number_of_movables:])
-            
-            next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
-
-            current_state = next_state
-
-            if is_win_terminal(next_state, self.number_of_movables):
-                running = False
-                if self.logging: print("Pacman won!")
-                self.renderer.render(next_state, action)
-                running = False
-                continue
-
-            if is_lose_terminal(next_state, self.number_of_movables):
-                running = False
-                if self.logging: print("Pacman lost!")
-                self.renderer.render(next_state, action)
-                running = False
-                continue
-
-"""
 
 
 class Game:
@@ -667,9 +528,6 @@ class Game:
         
         if not self.measure_performance:
             self.renderer = Renderer(policy_iterator, tile_size, fps, logging)
-        else:
-            self.clock = pygame.time.Clock()
-            self.fps = fps
         
         # At test time, account for a minimum threshold in seconds, the number of candies eaten and the number of moves
         if self.measure_performance:
@@ -746,7 +604,6 @@ class Game:
                     self.efficiency_ratio = self.candies_eaten / self.number_of_moves
                     if measure_filename == "": print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
-                    self.clock.tick(self.fps)
                     continue
 
             key_pressed = not ghost_controlled # track whether a KEYDOWN happened
@@ -776,9 +633,7 @@ class Game:
             # If no key was pressed, we do nothing and skip to next iteration 
             if not key_pressed:
                 # Limit CPU usage even when not moving
-                if self.measure_performance:
-                    self.clock.tick(self.fps)
-                else:
+                if not self.measure_performance:
                     self.renderer.clock_tick()
                 continue
 
@@ -791,11 +646,8 @@ class Game:
                 print("Game over - You won")
                 running = False
                 sleep(2)
-                if self.measure_performance:
-                    self.clock.tick(self.fps)
-                else:
+                if not self.measure_performance:
                     self.renderer.clock_tick()
-
                 if self.logging: 
                     print(f"Wins, terminal state: {self.current_state}")
 
@@ -807,7 +659,6 @@ class Game:
                     self.efficiency_ratio = self.candies_eaten / self.number_of_moves
                     if measure_filename == "": print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
                     running = False
-                    self.clock.tick(self.fps)
                 else:
                     self.renderer.clock_tick()
 
@@ -842,11 +693,8 @@ class Game:
                 print("Invalid action")
                 sleep(1)
                  
-                if self.measure_performance:
-                    self.clock.tick(self.fps)
-                else:
+                if not self.measure_performance:
                     self.renderer.clock_tick()
-
                 if self.logging:
                     print(f"Invalid action: {action}")
 
@@ -952,7 +800,6 @@ class Game:
             # Accumuate the stage cost
             if self.measure_performance:
                 self.reward_sum += self.reward(self.current_state, eaten)
-                self.clock.tick(self.fps)
             else:
                 self.renderer.clock_tick()
 
