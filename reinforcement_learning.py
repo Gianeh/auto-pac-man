@@ -270,16 +270,16 @@ class Policy_iterator:
     def run(self):
         if self.logging: 
             print(f"Running Policy Iteration algorithm for {self.max_episodes} episodes...\n")
+            print(f"Episode {self.episodes}")
 
         action = 0  # action placeholder for renderer object
         current_state = self.initial_state.copy()
         next_state = self.initial_state.copy()
-        if self.logging: 
-            print(f"Episode {self.episodes}")
         
         is_paused = False  # Pause state flag
         
         while self.episodes <= self.max_episodes:
+
             # Check if a key was pressed to lower or increase the fps of the renderer
             if self.renderer is not None:
                 for event in pygame.event.get():
@@ -329,8 +329,10 @@ class Policy_iterator:
             next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
             reward = self.reward(next_state, eaten)
 
+            terminal = is_terminal(next_state, self.number_of_movables)
+
             # Q function update
-            if is_terminal(next_state, self.number_of_movables):
+            if terminal:
                 next_possible_moves = [4]  # stay
             else:
                 next_possible_moves = [move for move in self.moves if self.map[next_state[0][1] + self.moves[move][1]][next_state[0][0] + self.moves[move][0]] != 1]
@@ -339,7 +341,7 @@ class Policy_iterator:
                 self.alpha * (reward + self.gamma * max([self.Q.get((tuple(next_state), next_action), 0) for next_action in next_possible_moves]) - self.Q.get((tuple(current_state), action), 0))
             
             current_state = next_state
-            if is_terminal(current_state, self.number_of_movables):
+            if terminal:
                 self.episodes += 1
                 if self.renderer is not None:
                     self.renderer.render(current_state, action)
@@ -348,7 +350,7 @@ class Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging: 
+                if self.logging and self.episodes % 500 == 0: 
                     print(f"Episode {self.episodes}")
 
     

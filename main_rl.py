@@ -3,7 +3,7 @@ from reinforcement_learning import State_initializer, Policy_iterator, Renderer,
 state_initializer = State_initializer(map_filename="ez_map", logging=True)
 #policy_iterator = Policy_iterator(state_initializer, max_episodes=10000, renderer=Renderer(state_initializer, fps=1), logging=True)
 
-policy_iterator = Policy_iterator(state_initializer, max_episodes=1000000, renderer=None, logging=True)
+policy_iterator = Policy_iterator(state_initializer, max_episodes=5000000, renderer=None, logging=True, alpha = 0.3, epsilon = 0.5)
 policy_iterator.load_Q()
 policy_iterator.run()
 policy_iterator.store_Q()
