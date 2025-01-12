@@ -208,7 +208,7 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
 
         # How many state action transitions to train with
-        self.batch_size = 32
+        self.batch_size = 128
 
         # Steps before a target network update
         self.update_target_steps = 1000  # for example
@@ -370,9 +370,20 @@ class Neural_Policy_iterator:
         next_state = self.initial_state.copy()
 
         is_paused = False  # Pause state flag
+
+        original_epsilon = self.epsilon #TESTING'''
         
         # Main loop of the policy iteration
         while self.episodes <= self.max_episodes:
+
+            '''TESTING'''
+
+            # Every 4 games turns the epsilon to 0
+            if self.episodes % 4 == 0:
+                self.epsilon = 0
+            else:
+                self.epsilon = original_epsilon
+
             # Check if a key was pressed to lower or increase the fps of the renderer
             if self.renderer is not None:
                 for event in pygame.event.get():
