@@ -378,6 +378,8 @@ class Neural_Policy_iterator:
         next_state = self.initial_state.copy()
 
         is_paused = False  # Pause state flag
+
+        original_epsilon = self.epsilon
         
         # Main loop of the policy iteration
         while self.episodes <= self.max_episodes:
@@ -433,6 +435,9 @@ class Neural_Policy_iterator:
             terminal = is_terminal(next_state, self.number_of_movables)
 
             self.store_transition(current_state, action, reward, next_state, terminal)
+
+            # Decay epsilon
+            self.epsilon = max(0.1, original_epsilon * (0.9995 ** self.episodes))
 
             #print(current_state, action, reward, next_state, terminal)
             current_state = next_state
