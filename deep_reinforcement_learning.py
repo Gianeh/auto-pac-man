@@ -10,6 +10,7 @@ import pygame
 import os
 from helper_functions import is_terminal, pacman_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
 import copy
+from numpy import inf
 
 # classes for neural network class
 import torch
@@ -163,8 +164,8 @@ class DQNNetwork(nn.Module):
         self.fc3 = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, x):
-        x = F.tanh(self.fc1(x))
-        x = F.tanh(self.fc2(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         return self.fc3(x)
 
 # Flatten a state removing tuples
@@ -190,7 +191,6 @@ class Neural_Policy_iterator:
         # Save the constructor parameters
         self.map = initializer.map
 
-        self.map = initializer.map
         self.initial_state = initializer.initial_state
         self.number_of_movables = initializer.number_of_movables
         self.number_of_ghosts = initializer.number_of_ghosts
@@ -208,14 +208,14 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
 
         # How many state action transitions to train with
-        self.batch_size = 128
+        self.batch_size = 256
 
         # Steps before a target network update
-        self.update_target_steps = 1000  # for example
+        self.update_target_steps = 20  # for example
         self.learn_step_counter = 0
 
         self.replay_buffer = []
-        self.replay_capacity = 10000
+        self.replay_capacity = 100000
 
         # reward function parameters
         self.lose_reward = lose_reward
@@ -304,7 +304,7 @@ class Neural_Policy_iterator:
             with torch.no_grad():
                 q_vals = self.Q(state_tensor)
                 # return the index of the max Q value only if it is a possible move
-                print(f"In State {state} the Q values are {q_vals}")
+                #print(f"In State {state} the Q values are {q_vals}")
                 #print(f"Chosen move {max(possible_moves, key=lambda move: q_vals[move].item())}")
                 return max(possible_moves, key=lambda move: q_vals[move].item())
 
@@ -347,7 +347,7 @@ class Neural_Policy_iterator:
         for i in range(self.batch_size):
             for move in self.moves:
                 if self.map[next_states[i][0][1] + self.moves[move][1]][next_states[i][0][0] + self.moves[move][0]] == 1:
-                    mask[i][move] = 0
+                    mask[i][move] = -inf
 
         # Compute Q target via target network
         with torch.no_grad():
@@ -380,7 +380,6 @@ class Neural_Policy_iterator:
         is_paused = False  # Pause state flag
 
         original_epsilon = self.epsilon
-        
         # Main loop of the policy iteration
         while self.episodes <= self.max_episodes:
             # Check if a key was pressed to lower or increase the fps of the renderer
@@ -436,9 +435,6 @@ class Neural_Policy_iterator:
 
             self.store_transition(current_state, action, reward, next_state, terminal)
 
-            # Decay epsilon
-            self.epsilon = max(0.1, original_epsilon * (0.9995 ** self.episodes))
-
             #print(current_state, action, reward, next_state, terminal)
             current_state = next_state
             if terminal:
@@ -453,5 +449,13 @@ class Neural_Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging and self.episodes: 
+                if self.logging and self.episodes % 10 == 0: 
                     print(f"Episode {self.episodes}")
+                    print(f"Current epsilon: {self.epsilon}")
+
+                # Decay epsilon linearly towards 0 at the end of the training
+                self.epsilon = original_epsilon - (original_epsilon / self.max_episodes) * self.episodes                 
+                
+                # Every 100 episodes store the Q function weights
+                if self.episodes % 100 == 0:
+                    self.store_Q()

@@ -363,10 +363,13 @@ class Policy_iterator:
                 file.write(f"{key}:{value}\n")
 
     def load_Q(self):
-        with open("./Q_tables/"+self.filename+".txt", "r") as file:
-            for line in file:
-                key, value = line.split(":")
-                self.Q[eval(key)] = float(value)
+        if os.path.exists("./Q_tables/"+self.filename+".txt"):
+            with open("./Q_tables/"+self.filename+".txt", "r") as file:
+                for line in file:
+                    key, value = line.split(":")
+                    self.Q[eval(key)] = float(value)
+        else:
+            print("The Q function file does not exist yet")
 
 
 
