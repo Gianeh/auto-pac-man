@@ -11,7 +11,7 @@ def diff_norm(dict_1, dict_2):
         raise ValueError("Dictionaries must have the same length")
     return max([abs(dict_1[key] - dict_2[key]) for key in dict_1])
 
-# Evaluate if a pacman move is valida and return a new state
+# Evaluate if a pacman move is valid and return a new state
 def pacman_move(state, action, number_of_movables, candies_positions, map):
     eaten=False
     # current position

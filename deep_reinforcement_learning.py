@@ -163,8 +163,8 @@ class DQNNetwork(nn.Module):
         self.fc3 = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
         return self.fc3(x)
 
 # Flatten a state removing tuples
@@ -282,6 +282,8 @@ class Neural_Policy_iterator:
    
     # Store the Q function weights in a file
     def store_Q(self):
+        if not os.path.exists("./weights"):
+            os.makedirs("./weights")
         torch.save(self.Q.state_dict(), f"./weights/{self.filename}_Q.pt")
     
     # Load the Q function weights from a file
@@ -302,6 +304,8 @@ class Neural_Policy_iterator:
             with torch.no_grad():
                 q_vals = self.Q(state_tensor)
                 # return the index of the max Q value only if it is a possible move
+                print(f"In State {state} the Q values are {q_vals}")
+                #print(f"Chosen move {max(possible_moves, key=lambda move: q_vals[move].item())}")
                 return max(possible_moves, key=lambda move: q_vals[move].item())
 
     def store_transition(self, state, action, reward, next_state, terminal):
@@ -309,8 +313,6 @@ class Neural_Policy_iterator:
         if len(self.replay_buffer) > self.replay_capacity:
             self.replay_buffer.pop(0)
             # Use dqueue instead of list for better performance ???
-
-
 
     def sample_and_learn(self):
         # Don’t update if not enough transitions yet
@@ -321,11 +323,11 @@ class Neural_Policy_iterator:
         transitions = sample(self.replay_buffer, self.batch_size)
         
         # Convert them into batches of tensors
-        states, actions, rewards, next_states, dones = zip(*transitions)
+        current_states, actions, rewards, next_states, dones = zip(*transitions)
 
         # Encode states
         # State Matrix: every row is a current state of the transition
-        current_states_tensor = torch.stack([encode_state(state, self.number_of_movables) for state in states])
+        current_states_tensor = torch.stack([encode_state(state, self.number_of_movables) for state in current_states])
         # Next state Matrix: every row is a next state of the transition
         next_states_tensor = torch.stack([encode_state(next_state, self.number_of_movables) for next_state in next_states])
         # Actions Tensor: every row is the action taken in the transition
@@ -340,9 +342,16 @@ class Neural_Policy_iterator:
         # Gather the Q-value for the chosen action
         q_a = q_values.gather(1, actions_tensor)
 
+        # Mask the Q-values for impossible actions in the next state
+        mask = torch.ones(self.batch_size, 5)
+        for i in range(self.batch_size):
+            for move in self.moves:
+                if self.map[next_states[i][0][1] + self.moves[move][1]][next_states[i][0][0] + self.moves[move][0]] == 1:
+                    mask[i][move] = 0
+
         # Compute Q target via target network
         with torch.no_grad():
-            q_next = self.Q_target(next_states_tensor)
+            q_next = self.Q_target(next_states_tensor) * mask
             q_next_max = q_next.max(dim=1, keepdim=True)[0]
             q_target = rewards_tensor + (1 - terminals_tensor) * self.gamma * q_next_max
 
@@ -359,7 +368,6 @@ class Neural_Policy_iterator:
         if self.learn_step_counter % self.update_target_steps == 0:
             self.Q_target.load_state_dict(self.Q.state_dict())
 
-
     def run(self):
         if self.logging: 
             print(f"Running Policy Iteration algorithm for {self.max_episodes} episodes...\n")
@@ -370,20 +378,9 @@ class Neural_Policy_iterator:
         next_state = self.initial_state.copy()
 
         is_paused = False  # Pause state flag
-
-        original_epsilon = self.epsilon #TESTING'''
         
         # Main loop of the policy iteration
         while self.episodes <= self.max_episodes:
-
-            '''TESTING'''
-
-            # Every 4 games turns the epsilon to 0
-            if self.episodes % 4 == 0:
-                self.epsilon = 0
-            else:
-                self.epsilon = original_epsilon
-
             # Check if a key was pressed to lower or increase the fps of the renderer
             if self.renderer is not None:
                 for event in pygame.event.get():
@@ -437,11 +434,12 @@ class Neural_Policy_iterator:
 
             self.store_transition(current_state, action, reward, next_state, terminal)
 
-            # Q network update
-            self.sample_and_learn()
-
+            #print(current_state, action, reward, next_state, terminal)
             current_state = next_state
             if terminal:
+                # Q network update
+                self.sample_and_learn()
+
                 self.episodes += 1
                 if self.renderer is not None:
                     self.renderer.render(current_state, action)
@@ -450,5 +448,5 @@ class Neural_Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
-                if self.logging and self.episodes % 500 == 0: 
+                if self.logging and self.episodes: 
                     print(f"Episode {self.episodes}")
