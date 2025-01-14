@@ -199,7 +199,7 @@ def debug_log(self, current_states_tensor, q_values, loss):
 
 
 class DQNNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim=128):
+    def __init__(self, state_dim, action_dim, hidden_dim=256):
         super(DQNNetwork, self).__init__()
         # Example MLP: input -> hidden -> hidden -> output
         self.fc1 = nn.Linear(state_dim, hidden_dim)
@@ -225,19 +225,21 @@ def encode_state(state, number_of_movables, candies_positions):
     #candies = state[number_of_movables:]
     # Distances to candies only if they are not eaten, 0 otherwise
     candies = []
-    '''
+    
     for i in range(number_of_movables, len(state)):
+        # If the candy is active, append its position
         if state[i] == 1:
             position = candies_positions[i]
             candies.append(position[0])
             candies.append(position[1])
+        # If the candy is eaten, append -1 for both coordinates
         else:
             candies.append(-1)
             candies.append(-1)
-    '''
-
+        candies.append(state[i]) # 1 if the candy is active, 0 otherwise
+    
     # Final flatten
-    encoded = coords + candies + state[number_of_movables:]
+    encoded = coords + candies
     # Casting to float32 to enable torch operations with weights
     return torch.tensor(encoded, dtype=torch.float32)
 
@@ -265,14 +267,14 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
 
         # How many state action transitions to train with
-        self.batch_size = 128
+        self.batch_size = 512
 
         # Steps before a target network update
-        self.update_target_steps = 50  # for example
+        self.update_target_steps = 500  # for example
         self.learn_step_counter = 0
 
         self.replay_buffer = []
-        self.replay_capacity = 100000
+        self.replay_capacity = 1000000
 
         # reward function parameters
         self.lose_reward = lose_reward
@@ -495,7 +497,7 @@ class Neural_Policy_iterator:
             next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
 
             # Reward function
-            reward = self.reward(next_state, eaten) if not invalid else self.lose_reward
+            reward = self.reward(next_state, eaten) if not invalid else self.lose_reward/4
 
             terminal = is_terminal(next_state, self.number_of_movables)
 
@@ -505,6 +507,9 @@ class Neural_Policy_iterator:
             n_wins += int(is_win_terminal(next_state, self.number_of_movables))
 
             current_state = next_state
+
+            
+
             if terminal:
                 self.episodes += 1
                 
@@ -518,7 +523,7 @@ class Neural_Policy_iterator:
                 # Reset the game state
                 current_state = self.initial_state.copy()
 
-                # Randomize next game
+                # Randomize next game 
 
                 # Candies
                 impossible_pacman_spawns = []
@@ -526,6 +531,10 @@ class Neural_Policy_iterator:
                     current_state[i] = int(random() < 0.5)
                     if current_state[i] == 1:
                         impossible_pacman_spawns.append(self.candies_positions[i])
+                    
+                # At least one candy is 1
+                if sum(current_state[self.number_of_movables:]) == 0:
+                    current_state[self.number_of_movables + int(random() * self.number_of_candies)] = 1
 
                 # Ghosts
                 for i in range(1, self.number_of_movables):
