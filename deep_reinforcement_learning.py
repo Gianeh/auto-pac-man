@@ -525,7 +525,7 @@ class Neural_Policy_iterator:
                 for i in range(self.number_of_movables, len(current_state)):
                     current_state[i] = int(random() < 0.5)
                     if current_state[i] == 1:
-                        impossible_pacman_spawns.append(self.candies[i])
+                        impossible_pacman_spawns.append(self.candies_positions[i])
 
                 # Ghosts
                 for i in range(1, self.number_of_movables):
