@@ -351,20 +351,18 @@ class Neural_Policy_iterator:
             print(f"No pretrained weights found at ./weights/{self.filename}_Q.pt")
 
     def pi(self, state):
-        possible_moves = [move for move in self.moves if self.map[state[0][1] + self.moves[move][1]][state[0][0] + self.moves[move][0]] != 1]
         # exploration
         if random() < self.epsilon:
-            return choice(possible_moves)
+            return choice(self.moves)
         # exploitation
         else:
             state_tensor = encode_state(state, self.number_of_movables, self.candies_positions)
             with torch.no_grad():
                 q_vals = self.Q(state_tensor)
-                # return the index of the max Q value only if it is a possible move
+                # return the index of the max Q value
                 """if self.episodes % 100 == 0 and self.logging:
                     print(f"In State {state} the Q values are {q_vals}")"""
-                #print(f"Chosen move {max(possible_moves, key=lambda move: q_vals[move].item())}")
-                return max(possible_moves, key=lambda move: q_vals[move].item())
+                return q_vals.argmax().item()
 
     def store_transition(self, state, action, reward, next_state, terminal):
         self.replay_buffer.append((state, action, reward, next_state, terminal))
@@ -404,12 +402,7 @@ class Neural_Policy_iterator:
         # Compute Q target via target network
         with torch.no_grad():
             q_next = self.Q_target(next_states_tensor)
-            # q_next_max = q_next.max(dim=1, keepdim=True)[0]
-            # select as q_max the q value of the action that maximizes the Q value only if such action is feasible in the next state
-            q_next_max = torch.zeros(q_next.shape[0])
-            for i in range(len(q_next_max)):
-                possible_moves = [move for move in self.moves if self.map[next_states[i][0][1] + self.moves[move][1]][next_states[i][0][0] + self.moves[move][0]] != 1]
-                q_next_max[i] = q_next[i][max(possible_moves, key=lambda move: q_next[i][move].item())]
+            q_next_max = q_next.max(dim=1, keepdim=True)[0]
             q_target = rewards_tensor + (1 - terminals_tensor) * self.gamma * q_next_max
 
         #print(f"Q_target: {q_target}")
@@ -475,6 +468,11 @@ class Neural_Policy_iterator:
 
             next_state, eaten = pacman_move(current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
 
+            invalid = False
+            if next_state == False:
+                next_state = current_state.copy()
+                invalid = True
+                
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
@@ -495,7 +493,9 @@ class Neural_Policy_iterator:
                 next_states.append([next_state[0]] + ghosts_state + next_state[self.number_of_movables:])
             
             next_state = choices(next_states, weights=ghosts_action_permutations_pmfs, k=1)[0]
-            reward = self.reward(next_state, eaten)
+
+            # Reward function
+            reward = self.reward(next_state, eaten) if not invalid else self.lose_reward
 
             terminal = is_terminal(next_state, self.number_of_movables)
 
