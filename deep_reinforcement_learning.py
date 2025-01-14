@@ -506,20 +506,40 @@ class Neural_Policy_iterator:
 
             current_state = next_state
             if terminal:
+                self.episodes += 1
+                
                 # Q network update
                 self.sample_and_learn()
 
-                self.episodes += 1
+                # Reset the game graphics
                 if self.renderer is not None:
                     self.renderer.render(current_state, action)
+                
+                # Reset the game state
                 current_state = self.initial_state.copy()
-                # Randomize pacman position avoiding ghosts
+
+                # Randomize next game
+
+                # Candies
+                impossible_pacman_spawns = []
+                for i in range(self.number_of_movables, len(current_state)):
+                    current_state[i] = int(random() < 0.5)
+                    if current_state[i] == 1:
+                        impossible_pacman_spawns.append(self.candies[i])
+
+                # Ghosts
+                for i in range(1, self.number_of_movables):
+                    current_state[i] = choice(self.possible_positions)
+                
+                # Pacman, avoid ghosts and active candies
                 current_state[0] = choice(self.possible_positions)
-                while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
+                while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in impossible_pacman_spawns:
                     current_state[0] = choice(self.possible_positions)
+
+                # Every 10 episodes print the winrate and epsilon
                 if self.logging and self.episodes % 10 == 0: 
                     print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, current epsilon: {self.epsilon}")
-
+               
                 # Decay epsilon linearly towards 0 at the end of the training
                 self.epsilon = original_epsilon - (original_epsilon / self.max_episodes) * self.episodes                 
                 
