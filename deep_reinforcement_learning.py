@@ -1,7 +1,7 @@
 # Classes for State counting and reinforcement learning training
 from PIL import Image
 from math import comb as binomial
-from math import prod
+from math import prod, sqrt
 from pprint import pprint
 from itertools import product
 from random import choices, choice, random, sample
@@ -154,6 +154,49 @@ class State_initializer:
             print(f"Number of terminal states: {number_of_terminal_states}\n")
 
         return number_of_states, number_of_terminal_states
+    
+
+def debug_log(self, current_states_tensor, q_values, loss):
+    """
+    Call this right after backprop (or wherever) to check for strange behavior.
+    Example call from sample_and_learn():
+    self.debug_log(current_states_tensor, q_values, loss)
+    """
+    # 1) Check for inf/NaN in Q-network parameters & gradients
+    bad_params = []
+    bad_grads = []
+    for name, param in self.Q.named_parameters():
+        if param is not None:
+            if torch.isnan(param).any() or torch.isinf(param).any():
+                bad_params.append(name)
+            if param.grad is not None and (torch.isnan(param.grad).any() or torch.isinf(param.grad).any()):
+                bad_grads.append(name)
+
+    # 2) Summarize Q-values from the sampled batch
+    # q_values is the result of: q_values = self.Q(current_states_tensor) before .gather(...)
+    q_min = q_values.min().item()
+    q_max = q_values.max().item()
+    q_mean = q_values.mean().item()
+    q_std = q_values.std().item()
+
+    # 3) Print out debug info
+    print("\n=== DEBUG LOG ===")
+    print(f"Loss: {loss.item():.4f}")
+    print(f"Q-values stats [batch before gather]: min={q_min:.4f}, max={q_max:.4f}, mean={q_mean:.4f}, std={q_std:.4f}")
+    if len(bad_params) > 0:
+        print(f"[WARNING] Found NaN/inf in parameters: {bad_params}")
+    if len(bad_grads) > 0:
+        print(f"[WARNING] Found NaN/inf in gradients: {bad_grads}")
+
+    # 4) (Optional) Peek at a small sample of stored transitions
+    if len(self.replay_buffer) > 0:
+        sample_transitions = self.replay_buffer[-3:]  # Last 3 transitions stored
+        print("Last few transitions in replay buffer:")
+        for i, (s, a, r, s_next, done) in enumerate(sample_transitions):
+            print(f"  Transition #{len(self.replay_buffer) - 3 + i}")
+            print(f"    state={s}, action={a}, reward={r}, done={done}")
+    print("=================\n")
+
 
 class DQNNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim=128):
@@ -161,15 +204,17 @@ class DQNNetwork(nn.Module):
         # Example MLP: input -> hidden -> hidden -> output
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, action_dim)
+        self.fc3 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc4 = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return self.fc3(x)
+        x = F.relu(self.fc3(x))
+        return self.fc4(x)
 
 # Flatten a state removing tuples
-def encode_state(state, number_of_movables):
+def encode_state(state, number_of_movables, candies_positions):
     # Positions
     coords = []
     for i in range(number_of_movables):
@@ -177,10 +222,22 @@ def encode_state(state, number_of_movables):
         coords.append(state[i][1])  # y
     
     # Candies
-    candies = state[number_of_movables:]
-    
+    #candies = state[number_of_movables:]
+    # Distances to candies only if they are not eaten, 0 otherwise
+    candies = []
+    '''
+    for i in range(number_of_movables, len(state)):
+        if state[i] == 1:
+            position = candies_positions[i]
+            candies.append(position[0])
+            candies.append(position[1])
+        else:
+            candies.append(-1)
+            candies.append(-1)
+    '''
+
     # Final flatten
-    encoded = coords + candies
+    encoded = coords + candies + state[number_of_movables:]
     # Casting to float32 to enable torch operations with weights
     return torch.tensor(encoded, dtype=torch.float32)
 
@@ -208,10 +265,10 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
 
         # How many state action transitions to train with
-        self.batch_size = 256
+        self.batch_size = 64
 
         # Steps before a target network update
-        self.update_target_steps = 20  # for example
+        self.update_target_steps = 50  # for example
         self.learn_step_counter = 0
 
         self.replay_buffer = []
@@ -233,7 +290,7 @@ class Neural_Policy_iterator:
         }
 
         # Initialize the Q function
-        self.Q = DQNNetwork(state_dim=len(encode_state(self.initial_state, self.number_of_movables)), action_dim=5) # including stay action
+        self.Q = DQNNetwork(state_dim=len(encode_state(self.initial_state, self.number_of_movables, self.candies_positions)), action_dim=5) # including stay action
         self.Q_target = copy.deepcopy(self.Q)
         self.optimizer = torch.optim.Adam(self.Q.parameters(), lr=self.alpha)
         self.loss = nn.MSELoss()
@@ -300,11 +357,12 @@ class Neural_Policy_iterator:
             return choice(possible_moves)
         # exploitation
         else:
-            state_tensor = encode_state(state, self.number_of_movables)
+            state_tensor = encode_state(state, self.number_of_movables, self.candies_positions)
             with torch.no_grad():
                 q_vals = self.Q(state_tensor)
                 # return the index of the max Q value only if it is a possible move
-                #print(f"In State {state} the Q values are {q_vals}")
+                """if self.episodes % 100 == 0 and self.logging:
+                    print(f"In State {state} the Q values are {q_vals}")"""
                 #print(f"Chosen move {max(possible_moves, key=lambda move: q_vals[move].item())}")
                 return max(possible_moves, key=lambda move: q_vals[move].item())
 
@@ -327,9 +385,9 @@ class Neural_Policy_iterator:
 
         # Encode states
         # State Matrix: every row is a current state of the transition
-        current_states_tensor = torch.stack([encode_state(state, self.number_of_movables) for state in current_states])
+        current_states_tensor = torch.stack([encode_state(state, self.number_of_movables, self.candies_positions) for state in current_states])
         # Next state Matrix: every row is a next state of the transition
-        next_states_tensor = torch.stack([encode_state(next_state, self.number_of_movables) for next_state in next_states])
+        next_states_tensor = torch.stack([encode_state(next_state, self.number_of_movables, self.candies_positions) for next_state in next_states])
         # Actions Tensor: every row is the action taken in the transition
         actions_tensor = torch.tensor(actions, dtype=torch.int64).view(-1, 1) 
         # Rewards Tensor: every row is the reward of the transition
@@ -342,26 +400,30 @@ class Neural_Policy_iterator:
         # Gather the Q-value for the chosen action
         q_a = q_values.gather(1, actions_tensor)
 
-        # Mask the Q-values for impossible actions in the next state
-        mask = torch.ones(self.batch_size, 5)
-        for i in range(self.batch_size):
-            for move in self.moves:
-                if self.map[next_states[i][0][1] + self.moves[move][1]][next_states[i][0][0] + self.moves[move][0]] == 1:
-                    mask[i][move] = -inf
 
         # Compute Q target via target network
         with torch.no_grad():
-            q_next = self.Q_target(next_states_tensor) * mask
-            q_next_max = q_next.max(dim=1, keepdim=True)[0]
+            q_next = self.Q_target(next_states_tensor)
+            # q_next_max = q_next.max(dim=1, keepdim=True)[0]
+            # select as q_max the q value of the action that maximizes the Q value only if such action is feasible in the next state
+            q_next_max = torch.zeros(q_next.shape[0])
+            for i in range(len(q_next_max)):
+                possible_moves = [move for move in self.moves if self.map[next_states[i][0][1] + self.moves[move][1]][next_states[i][0][0] + self.moves[move][0]] != 1]
+                q_next_max[i] = q_next[i][max(possible_moves, key=lambda move: q_next[i][move].item())]
             q_target = rewards_tensor + (1 - terminals_tensor) * self.gamma * q_next_max
 
-        # Compute MSE loss
+        #print(f"Q_target: {q_target}")
         loss = torch.nn.MSELoss()(q_a, q_target)
+        #print(f"Loss: {loss.item():.4f}")
+
 
         # Backprop
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        # Debug log
+        #debug_log(self, current_states_tensor, q_values, loss)
 
         # Update target network occasionally
         self.learn_step_counter += 1
@@ -381,6 +443,10 @@ class Neural_Policy_iterator:
 
         original_epsilon = self.epsilon
         # Main loop of the policy iteration
+
+        n_games = 0
+        n_wins = 0
+
         while self.episodes <= self.max_episodes:
             # Check if a key was pressed to lower or increase the fps of the renderer
             if self.renderer is not None:
@@ -435,7 +501,9 @@ class Neural_Policy_iterator:
 
             self.store_transition(current_state, action, reward, next_state, terminal)
 
-            #print(current_state, action, reward, next_state, terminal)
+            n_games += 1
+            n_wins += int(is_win_terminal(next_state, self.number_of_movables))
+
             current_state = next_state
             if terminal:
                 # Q network update
@@ -450,8 +518,7 @@ class Neural_Policy_iterator:
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in self.candies_positions.values():
                     current_state[0] = choice(self.possible_positions)
                 if self.logging and self.episodes % 10 == 0: 
-                    print(f"Episode {self.episodes}")
-                    print(f"Current epsilon: {self.epsilon}")
+                    print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, current epsilon: {self.epsilon}")
 
                 # Decay epsilon linearly towards 0 at the end of the training
                 self.epsilon = original_epsilon - (original_epsilon / self.max_episodes) * self.episodes                 
