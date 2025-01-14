@@ -265,7 +265,7 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
 
         # How many state action transitions to train with
-        self.batch_size = 64
+        self.batch_size = 128
 
         # Steps before a target network update
         self.update_target_steps = 50  # for example
@@ -353,7 +353,7 @@ class Neural_Policy_iterator:
     def pi(self, state):
         # exploration
         if random() < self.epsilon:
-            return choice(self.moves)
+            return choice(list(self.moves.keys()))
         # exploitation
         else:
             state_tensor = encode_state(state, self.number_of_movables, self.candies_positions)
