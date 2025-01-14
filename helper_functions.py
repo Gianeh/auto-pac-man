@@ -1,5 +1,5 @@
 # Some helper methods to check states, stage costs, norm of the difference
-
+import heapq
 
 # Check if a state is terminal, with no regard to impossibility of the state
 def is_terminal(state, number_of_movables):
@@ -82,6 +82,71 @@ def ghost_move_manhattan(state, ghost_index, moves, map, power=1):
 
     # Compute the pmf of actions based on the Manhattan distances wheighing more the closer actions
     pmf = build_pmf(manhattan_distances, power)
+    return possible_actions, pmf
+
+def a_star_distance(game_map, start, goal):
+    if start == goal:
+        return 0
+
+    # Manhattan distance
+    def heuristic(pos1, pos2):
+        (x1, y1), (x2, y2) = pos1, pos2
+        return abs(x1 - x2) + abs(y1 - y2)
+
+    visited = set()
+    # Priority queue stores (f, g, (x, y)), where f = g + h
+    priority_queue = []
+    start_h = heuristic(start, goal)
+    heapq.heappush(priority_queue, (start_h, 0, start))  # f, g, position
+
+    while priority_queue:
+        # this returns the tuple with the smallest f
+        f, g, current = heapq.heappop(priority_queue)
+        if current in visited:
+            continue
+        visited.add(current)
+
+        if current == goal:
+            return g  # g is cost-so-far, i.e. actual distance
+
+        current_x, current_y = current
+        for new_x, new_y in [(current_x+1, current_y), (current_x-1, current_y), (current_x, current_y+1), (current_x, current_y-1)]:
+            # Check boundaries and walls
+            if 0 < new_y < len(game_map)-1 and 0 < new_x < len(game_map[0])-1:
+                if game_map[new_y][new_x] != 1 and (new_x, new_y) not in visited:
+                    new_g = g + 1
+                    new_h = heuristic((new_x, new_y), goal)
+                    new_f = new_g + new_h
+                    heapq.heappush(priority_queue, (new_f, new_g, (new_x, new_y)))
+
+    # Goal not reachable
+    return 9999
+
+def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
+    ghost_position = state[ghost_index]
+
+    # Collect valid actions (exclude stay action for ghosts, if you wish)
+    possible_actions = []
+    bfs_distances = []
+    # Exclude the last item if it's 'stay'
+    for action_key in list(moves.keys())[:-1]:
+        dx, dy = moves[action_key]
+        new_position = (ghost_position[0] + dx, ghost_position[1] + dy)
+
+        # Skip if this new cell is a wall
+        if game_map[new_position[1]][new_position[0]] == 1:
+            continue
+
+        possible_actions.append((dx, dy))
+
+        # BFS distance from new_position to pac-man
+        dist = a_star_distance(game_map, new_position, state[0])
+        bfs_distances.append(dist)
+
+    # Build pmf just like with manhattan_distance
+    # e.g., if you have: build_pmf(distances, power)
+    pmf = build_pmf(bfs_distances, power)
+
     return possible_actions, pmf
 
 

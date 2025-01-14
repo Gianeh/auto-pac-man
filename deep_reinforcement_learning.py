@@ -8,7 +8,7 @@ from random import choices, choice, random, sample
 from time import sleep
 import pygame
 import os
-from helper_functions import is_terminal, pacman_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
+from helper_functions import is_terminal, pacman_move, is_win_terminal, is_lose_terminal, ghost_move_pathfinding
 import copy
 from numpy import inf
 
@@ -246,7 +246,7 @@ def encode_state(state, number_of_movables, candies_positions):
 # Class for policy iteration using Deep Q-Learning
 
 class Neural_Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e-1, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
         # Save the constructor parameters
         self.map = initializer.map
 
@@ -265,6 +265,7 @@ class Neural_Policy_iterator:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
+        self.min_epsilon = min_epsilon
 
         # How many state action transitions to train with
         self.batch_size = 512
@@ -479,7 +480,7 @@ class Neural_Policy_iterator:
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
             for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list, pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
+                possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
                 possible_ghosts_actions.append(possible_ghost_action_list)
                 ghosts_actions_pmfs.append(pmf)
 
@@ -508,13 +509,16 @@ class Neural_Policy_iterator:
 
             current_state = next_state
 
-            
+            # Only learn after 1/10 of the episodes passed
+            if self.episodes > self.max_episodes // 10:
+                # Q network update
+                self.sample_and_learn()
+                '''
+                This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
+                '''
 
             if terminal:
                 self.episodes += 1
-                
-                # Q network update
-                self.sample_and_learn()
 
                 # Reset the game graphics
                 if self.renderer is not None:
@@ -523,6 +527,7 @@ class Neural_Policy_iterator:
                 # Reset the game state
                 current_state = self.initial_state.copy()
 
+                '''
                 # Randomize next game 
 
                 # Candies
@@ -544,13 +549,14 @@ class Neural_Policy_iterator:
                 current_state[0] = choice(self.possible_positions)
                 while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in impossible_pacman_spawns:
                     current_state[0] = choice(self.possible_positions)
-
+                '''
+                
                 # Every 10 episodes print the winrate and epsilon
                 if self.logging and self.episodes % 10 == 0: 
                     print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, current epsilon: {self.epsilon}")
                
                 # Decay epsilon linearly towards 0 at the end of the training
-                self.epsilon = original_epsilon - (original_epsilon / self.max_episodes) * self.episodes                 
+                self.epsilon = max(self.min_epsilon, original_epsilon - (original_epsilon / self.max_episodes) * self.episodes)    
                 
                 # Every 100 episodes store the Q function weights
                 if self.episodes % 100 == 0:
