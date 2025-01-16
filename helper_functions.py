@@ -127,7 +127,7 @@ def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
 
     # Collect valid actions (exclude stay action for ghosts, if you wish)
     possible_actions = []
-    bfs_distances = []
+    a_star_distances = []
     # Exclude the last item if it's 'stay'
     for action_key in list(moves.keys())[:-1]:
         dx, dy = moves[action_key]
@@ -141,11 +141,11 @@ def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
 
         # BFS distance from new_position to pac-man
         dist = a_star_distance(game_map, new_position, state[0])
-        bfs_distances.append(dist)
+        a_star_distances.append(dist)
 
     # Build pmf just like with manhattan_distance
     # e.g., if you have: build_pmf(distances, power)
-    pmf = build_pmf(bfs_distances, power)
+    pmf = build_pmf(a_star_distances, power)
 
     return possible_actions, pmf
 
