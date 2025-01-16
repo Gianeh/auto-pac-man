@@ -252,7 +252,41 @@ def encode_state_as_map(state, map_shape, map, number_of_movables, candies_posit
 
 # Modify the Neural_Policy_iterator class to use CNN
 class Neural_Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-3, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-3, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, increasing_power=False, random_spawn=False, logging=False):
+        """
+        Generalized Policy Iteration algorithm using Deep Q-Learning with a CNN (requires State_initializer instance)
+
+        initializer:        State_initializer instance, built as State_initializer(map_filename, logging)
+
+        renderer:           Renderer object to visualize the graphics of the game
+
+        max_episodes:       Number of episodes to run the algorithm
+        
+        alpha:              Learning rate, weights the new information against the old information during the update of the Q function
+
+        gamma:              Discount factor, weights the future rewards against the current rewards
+
+        epsilon:            Exploration rate, the higher the value the more the agent will explore the environment
+
+        min_epsilon:        Minimum value for epsilon, the exploration rate will decay towards this value
+
+        lose_reward:        reward of losing the game (eaten by a ghost)
+
+        win_reward:         reward of winning the game (eating all candies)
+
+        move_reward:        reward of moving from one state to another without eating a candy or being eaten by a ghost
+
+        eat_reward:         reward of eating a candy
+
+        power:              Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, power = 0 means the ghosts move randomly
+        
+        increasing_power:   Flag to increase the power parameter every 500 episodes when epsilon reaches min_epsilon
+        
+        random_spawn:       Flag to randomly spawn at least one candy, ghosts and pacman at the beginning of each episode
+        
+        logging:            Flag to enable logging of the algorithm steps
+        """
+        # Save the initializer parameters
         self.map = initializer.map
         self.map_shape = (len(self.map[0]), len(self.map))  # Width, Height
         self.initial_state = initializer.initial_state
@@ -261,10 +295,14 @@ class Neural_Policy_iterator:
         self.number_of_candies = initializer.number_of_candies
         self.candies_positions = initializer.candies_positions
         self.filename = initializer.filename
+
+        # Save the device (CPU or GPU)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
+        self.random_spawn = random_spawn
         self.power = power
+        self.increasing_power = increasing_power
 
         # save policy iteration hyperparameters
         self.max_episodes = max_episodes
@@ -273,15 +311,18 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
 
-        # How many state action transitions to train with
-        self.batch_size = 128
-
-        # Steps before a target network update
-        self.update_target_steps = 1000  # for example
-        self.learn_step_counter = 0
-
+        # Replay buffer for experience replay
         self.replay_buffer = []
-        self.replay_capacity = 100000
+        self.replay_capacity = 200000 
+
+        # How many transitions to sample from the replay buffer for each training step of the Q-network
+        self.batch_size = 200
+
+        # Number of trainig steps (of the Q-network) before updating the target network
+        self.update_target_steps = 50
+
+        # Counter for the number of learning steps of the Q-network
+        self.learn_step_counter = 0
 
         # reward function parameters
         self.lose_reward = lose_reward
@@ -298,7 +339,7 @@ class Neural_Policy_iterator:
             4: (0, 0)   # stay
         }
 
-        # Initialize CNN-based Q-network
+        # Initialize CNN-based Q function and target network
         self.Q = CNNNetwork(input_channels=5, action_dim=len(self.moves), device=self.device)
         self.Q_target = copy.deepcopy(self.Q)
         self.optimizer = torch.optim.Adam(self.Q.parameters(), lr=alpha)
@@ -307,14 +348,12 @@ class Neural_Policy_iterator:
         if pretrained:
             self.load_Q()
 
-        self.replay_buffer = []
-        self.replay_capacity = 200000 #should be decreased to 100k to test the algorithm (around 100 steps per episode * 1000 episodes = 100k ) 
-        self.batch_size = 200
-        self.update_target_steps = 50
-        self.learn_step_counter = 0
-
+        # Renderer object to visualize the game
         self.renderer = renderer
+
         self.logging = logging
+
+        # Episode counter
         self.episodes = 0
 
     
@@ -527,6 +566,30 @@ class Neural_Policy_iterator:
                 
                 # Reset the game state
                 current_state = self.initial_state.copy()
+
+                if self.random_spawn:
+                # Randomize next game 
+
+                    # Candies
+                    impossible_pacman_spawns = []
+                    for i in range(self.number_of_movables, len(current_state)):
+                        current_state[i] = int(random() < 0.5)
+                        if current_state[i] == 1:
+                            impossible_pacman_spawns.append(self.candies_positions[i])
+                        
+                    # At least one candy is 1
+                    if sum(current_state[self.number_of_movables:]) == 0:
+                        current_state[self.number_of_movables + int(random() * self.number_of_candies)] = 1
+
+                    # Ghosts
+                    for i in range(1, self.number_of_movables):
+                        current_state[i] = choice(self.possible_positions)
+                    
+                    # Pacman, avoid ghosts and active candies
+                    current_state[0] = choice(self.possible_positions)
+                    while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in impossible_pacman_spawns:
+                        current_state[0] = choice(self.possible_positions)
+
                 
                 # Every 10 episodes print the winrate and epsilon
                 if self.logging and self.episodes % 10 == 0: 
@@ -540,7 +603,7 @@ class Neural_Policy_iterator:
                     self.store_Q()
 
                 
-                if self.episodes % 500 == 0 and self.epsilon == self.min_epsilon:
+                if self.episodes % 500 == 0 and self.epsilon == self.min_epsilon and self.increasing_power:
                     self.power += 1 if self.power < 10 else 10
                     print(f"\n\n{'*'*100}\n")
                     print(f"Power increased to {self.power}")

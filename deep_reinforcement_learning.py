@@ -248,11 +248,13 @@ def encode_state(state, number_of_movables, candies_positions, map):
 # Class for policy iteration using Deep Q-Learning
 
 class Neural_Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, random_spawn=False, logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, increasing_power=False, random_spawn=False, logging=False):
         """
-        Generalized Policy Iteration algorithm using Deep Q-Learning (requires State_initializer instance)
+        Generalized Policy Iteration algorithm using Deep Q-Learning with a MLP (requires State_initializer instance)
 
         initializer:        State_initializer instance, built as State_initializer(map_filename, logging)
+
+        renderer:           Renderer object to visualize the graphics of the game
 
         max_episodes:       Number of episodes to run the algorithm
         
@@ -274,6 +276,8 @@ class Neural_Policy_iterator:
 
         power:              Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, power = 0 means the ghosts move randomly
         
+        increasing_power:   Flag to increase the power parameter every 500 episodes when epsilon reaches min_epsilon
+        
         random_spawn:       Flag to randomly spawn at least one candy, ghosts and pacman at the beginning of each episode
         
         logging:            Flag to enable logging of the algorithm steps
@@ -290,6 +294,7 @@ class Neural_Policy_iterator:
         self.filename = initializer.filename
 
         self.power = power
+        self.increasing_power = increasing_power
         self.random_spawn = random_spawn
 
         # save policy iteration hyperparameters
@@ -299,13 +304,16 @@ class Neural_Policy_iterator:
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
 
-        # How many state action transitions to train with
+        # How many transitions to sample from the replay buffer for each training step of the Q-network
         self.batch_size = 64
 
-        # Steps before a target network update
-        self.update_target_steps = 1000  # for example
+        # Number of trainig steps (of the Q-network) before updating the target network
+        self.update_target_steps = 1000  
+
+        # Counter for the number of learning steps of the Q-network
         self.learn_step_counter = 0
 
+        # Replay buffer for experience replay
         self.replay_buffer = []
         self.replay_capacity = 1000000
 
@@ -325,7 +333,7 @@ class Neural_Policy_iterator:
             4: (0, 0)   # stay
         }
 
-        # Initialize the Q function
+        # Initialize the MLP-based Q function and the target network
         self.Q = DQNNetwork(state_dim=len(encode_state(self.initial_state, self.number_of_movables, self.candies_positions, self.map)), action_dim=5) # including stay action
         self.Q_target = copy.deepcopy(self.Q)
         self.optimizer = torch.optim.Adam(self.Q.parameters(), lr=self.alpha)
@@ -336,9 +344,11 @@ class Neural_Policy_iterator:
             self.load_Q()
 
         self.logging = logging
-        # Renderer object 
+
+        # Renderer object to visualize the game
         self.renderer = renderer
 
+        # Episode counter
         self.episodes = 0
 
     def reward(self, state, eaten):
@@ -593,3 +603,9 @@ class Neural_Policy_iterator:
                 # Every 100 episodes store the Q function weights
                 if self.episodes % 100 == 0:
                     self.store_Q()
+
+                if self.episodes % 500 == 0 and self.epsilon == self.min_epsilon and self.increasing_power:
+                    self.power += 1 if self.power < 10 else 10
+                    print(f"\n\n{'*'*100}\n")
+                    print(f"Power increased to {self.power}")
+                    print(f"{'*'*100}\n\n")
