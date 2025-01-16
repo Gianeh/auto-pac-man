@@ -742,19 +742,7 @@ class Game:
             if self.logging: 
                 print(f"Pacman action: {action} triggered transition from State: {self.current_state} to State: {next_state}")
 
-            # If the action was invalid, skip (ignore the pressed key)
-            '''
-            if not next_state:
-                print("Invalid action")
-                sleep(1)
-                 
-                if not self.measure_performance:
-                    self.renderer.clock_tick()
-                if self.logging:
-                    print(f"Invalid action: {action}")
-
-                continue
-            '''
+            # If the pacman move is invalid, we keep the current state
             if not next_state:
                 next_state = self.current_state.copy()
 
