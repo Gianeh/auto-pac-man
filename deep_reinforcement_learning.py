@@ -248,10 +248,38 @@ def encode_state(state, number_of_movables, candies_positions, map):
 # Class for policy iteration using Deep Q-Learning
 
 class Neural_Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, logging=False):
-        # Save the constructor parameters
-        self.map = initializer.map
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e0, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, random_spawn=False, logging=False):
+        """
+        Generalized Policy Iteration algorithm using Deep Q-Learning (requires State_initializer instance)
 
+        initializer:        State_initializer instance, built as State_initializer(map_filename, logging)
+
+        max_episodes:       Number of episodes to run the algorithm
+        
+        alpha:              Learning rate, weights the new information against the old information during the update of the Q function
+
+        gamma:              Discount factor, weights the future rewards against the current rewards
+
+        epsilon:            Exploration rate, the higher the value the more the agent will explore the environment
+
+        min_epsilon:        Minimum value for epsilon, the exploration rate will decay towards this value
+
+        lose_reward:        reward of losing the game (eaten by a ghost)
+
+        win_reward:         reward of winning the game (eating all candies)
+
+        move_reward:        reward of moving from one state to another without eating a candy or being eaten by a ghost
+
+        eat_reward:         reward of eating a candy
+
+        power:              Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, power = 0 means the ghosts move randomly
+        
+        random_spawn:       Flag to randomly spawn at least one candy, ghosts and pacman at the beginning of each episode
+        
+        logging:            Flag to enable logging of the algorithm steps
+        """
+        # Save the initializer parameters
+        self.map = initializer.map
         self.initial_state = initializer.initial_state
         self.number_of_movables = initializer.number_of_movables
         self.number_of_ghosts = initializer.number_of_ghosts
@@ -260,7 +288,9 @@ class Neural_Policy_iterator:
         self.candies_positions = initializer.candies_positions
         self.possible_states = initializer.number_of_possible_states
         self.filename = initializer.filename
+
         self.power = power
+        self.random_spawn = random_spawn
 
         # save policy iteration hyperparameters
         self.max_episodes = max_episodes
@@ -529,28 +559,28 @@ class Neural_Policy_iterator:
                 # Reset the game state
                 current_state = self.initial_state.copy()
 
-
+                if self.random_spawn:
                 # Randomize next game 
 
-                # Candies
-                impossible_pacman_spawns = []
-                for i in range(self.number_of_movables, len(current_state)):
-                    current_state[i] = int(random() < 0.5)
-                    if current_state[i] == 1:
-                        impossible_pacman_spawns.append(self.candies_positions[i])
-                    
-                # At least one candy is 1
-                if sum(current_state[self.number_of_movables:]) == 0:
-                    current_state[self.number_of_movables + int(random() * self.number_of_candies)] = 1
+                    # Candies
+                    impossible_pacman_spawns = []
+                    for i in range(self.number_of_movables, len(current_state)):
+                        current_state[i] = int(random() < 0.5)
+                        if current_state[i] == 1:
+                            impossible_pacman_spawns.append(self.candies_positions[i])
+                        
+                    # At least one candy is 1
+                    if sum(current_state[self.number_of_movables:]) == 0:
+                        current_state[self.number_of_movables + int(random() * self.number_of_candies)] = 1
 
-                # Ghosts
-                for i in range(1, self.number_of_movables):
-                    current_state[i] = choice(self.possible_positions)
-                
-                # Pacman, avoid ghosts and active candies
-                current_state[0] = choice(self.possible_positions)
-                while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in impossible_pacman_spawns:
+                    # Ghosts
+                    for i in range(1, self.number_of_movables):
+                        current_state[i] = choice(self.possible_positions)
+                    
+                    # Pacman, avoid ghosts and active candies
                     current_state[0] = choice(self.possible_positions)
+                    while current_state[0] in current_state[1:self.number_of_movables] or current_state[0] in impossible_pacman_spawns:
+                        current_state[0] = choice(self.possible_positions)
 
 
                 # Every 10 episodes print the winrate and epsilon
