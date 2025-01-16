@@ -20,10 +20,6 @@ progress_dict = manager.dict()
 progress_dict["done"] = 0
 progress_lock = manager.Lock() 
 
-# create monte_carlo directory if it does not exist
-os.makedirs("monte_carlo", exist_ok=True)
-
-
 def run_experiment(value_iterator, simulations_number, game_power, progress_dict, progress_lock, total):
     with open("./monte_carlo/game_power_" + str(game_power) + ".log", "a") as f:
         f.write("\n\n" + "#"*170 + "\n")
@@ -44,6 +40,7 @@ def run_experiment(value_iterator, simulations_number, game_power, progress_dict
 
 
 if __name__ == "__main__":
+    os.makedirs("monte_carlo", exist_ok=True)
     param_grid = []
     for game_power in game_powers:
         param_grid.append((value_iterator, simulations_number, game_power))

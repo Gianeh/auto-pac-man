@@ -46,6 +46,7 @@ def run_experiment(map_filename, epsilon, alpha, lose_cost, win_cost, move_cost,
     print(f"[PID {os.getpid()}] Completed iteration {done} / {total}.")
 
 if __name__ == "__main__":
+    os.makedirs("./parallel_jobs", exist_ok=True)
     param_grid = []
     for map_filename in maps:
         for epsilon in epsilons:
