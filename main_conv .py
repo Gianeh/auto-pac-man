@@ -1,5 +1,4 @@
-from conv_RL import Neural_Policy_iterator
-from reinforcement_learning import Renderer, State_initializer
+from conv_RL import Neural_Policy_iterator, State_initializer, Renderer
 
 #Renderer(state_initializer, fps=10)
 

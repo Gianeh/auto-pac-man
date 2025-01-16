@@ -1,5 +1,4 @@
-from deep_reinforcement_learning import Neural_Policy_iterator
-from reinforcement_learning import Renderer, State_initializer
+from deep_reinforcement_learning import Neural_Policy_iterator, Renderer, State_initializer
 
 state_initializer = State_initializer(map_filename="ez_ClassicGrid", logging=True, load_from_txt=True)
 #Renderer(state_initializer, fps=15)
