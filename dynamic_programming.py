@@ -262,7 +262,7 @@ class Value_iterator:
 
         # discount factor
         self.alpha = alpha
-            # If we want to control the accuracy of the value function from the optimum through the epsilon parameter
+        # If we want to control the accuracy of the value function from the optimum through the epsilon parameter
         if self.control_accuracy:
             self.epsilon = epsilon
             self.delta = ((1 - self.alpha)/self.alpha) * self.epsilon
