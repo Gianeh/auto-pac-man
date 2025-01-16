@@ -107,7 +107,7 @@ def a_star_distance(game_map, start, goal):
         visited.add(current)
 
         if current == goal:
-            return g  # g is cost-so-far, i.e. actual distance
+            return g  # g is cost-so-far, the actual distance
 
         current_x, current_y = current
         for new_x, new_y in [(current_x+1, current_y), (current_x-1, current_y), (current_x, current_y+1), (current_x, current_y-1)]:
@@ -125,10 +125,10 @@ def a_star_distance(game_map, start, goal):
 def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
     ghost_position = state[ghost_index]
 
-    # Collect valid actions (exclude stay action for ghosts, if you wish)
+    # Collect valid actions excluding the stay action for ghosts
     possible_actions = []
-    bfs_distances = []
-    # Exclude the last item if it's 'stay'
+    a_star_distances = []
+    # Exclude the stay action
     for action_key in list(moves.keys())[:-1]:
         dx, dy = moves[action_key]
         new_position = (ghost_position[0] + dx, ghost_position[1] + dy)
@@ -139,13 +139,13 @@ def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
 
         possible_actions.append((dx, dy))
 
-        # BFS distance from new_position to pac-man
+        # BFS distance from ghost's new position to pacman
         dist = a_star_distance(game_map, new_position, state[0])
-        bfs_distances.append(dist)
+        a_star_distances.append(dist)
 
     # Build pmf just like with manhattan_distance
     # e.g., if you have: build_pmf(distances, power)
-    pmf = build_pmf(bfs_distances, power)
+    pmf = build_pmf(a_star_distances, power)
 
     return possible_actions, pmf
 

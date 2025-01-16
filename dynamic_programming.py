@@ -8,6 +8,7 @@ from itertools import product
 from numpy import argmin, random
 from time import sleep
 import pygame
+import os
 from helper_functions import is_terminal, diff_norm, pacman_move, is_win_terminal, is_lose_terminal, ghost_move_pathfinding
 
 class States_enumerator:
@@ -335,12 +336,20 @@ class Value_iterator:
     
     def store_policy(self, filename=""):
         if filename == "": filename = self.filename
+
+        # check if the policies folder exists
+        os.makedirs("./policies", exist_ok=True)
+
         with open(f"./policies/{filename}_policy.txt", "w") as file:
             for s in range(len(self.states)):
                 file.write(f"{self.states[s]}-->{self.moves[self.policy[s]]}\n")
 
     def store_value_function(self, filename=""):
         if filename == "": filename = self.filename
+
+        # check if the value_functions folder exists
+        os.makedirs("./value_functions", exist_ok=True)
+        
         with open(f"./value_functions/{filename}_value_function.txt", "w") as file:
             for key, value in self.value_function.items():
                 file.write(f"{key} : {value}\n")
@@ -421,8 +430,8 @@ class Game:
 
         power:          Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, 
                         power = 0 means the ghosts move randomly with uniform probability wrt the possible moves
-                        power = 1 means the ghosts move with a probability proportional to the inverse of the manhattan distance to pacman
-                        power = 2 means the ghosts move with a probability proportional to the inverse of the square of the manhattan distance to pacman
+                        power = 1 means the ghosts move with a probability proportional to the inverse of the manhattan distance of A* paths to pacman
+                        power = 2 means the ghosts move with a probability proportional to the inverse of the squared manhattan distance of A* paths to pacman 
                         and so on...
 
         logging:        Flag to enable logging of the game steps
@@ -537,6 +546,12 @@ class Game:
 
     def load_policy(self, filename=""):
         if filename == "": filename = self.filename
+
+        # Check if the policies folder exists
+        if not os.path.exists("./policies"):
+            print("No policies found in \"./policies\"")
+            return
+        
         with open(f"./policies/{filename}_policy.txt", "r") as file:
             for i in range(len(self.states)):
                 line = file.readline()
