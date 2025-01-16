@@ -294,6 +294,7 @@ class Neural_Policy_iterator:
         self.number_of_ghosts = initializer.number_of_ghosts
         self.number_of_candies = initializer.number_of_candies
         self.candies_positions = initializer.candies_positions
+        self.possible_positions = initializer.possible_positions
         self.filename = initializer.filename
 
         # Save the device (CPU or GPU)

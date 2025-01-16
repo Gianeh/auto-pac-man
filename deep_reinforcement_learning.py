@@ -290,7 +290,6 @@ class Neural_Policy_iterator:
         self.number_of_candies = initializer.number_of_candies
         self.possible_positions = initializer.possible_positions
         self.candies_positions = initializer.candies_positions
-        self.possible_states = initializer.number_of_possible_states
         self.filename = initializer.filename
 
         self.power = power
