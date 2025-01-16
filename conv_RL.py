@@ -355,12 +355,10 @@ class Neural_Policy_iterator:
 
         # Episode counter
         self.episodes = 0
-
     
-        # Store the Q function weights in a file
+    # Store the Q function weights in a file
     def store_Q(self):
-        if not os.path.exists("./conv_weights"):
-            os.makedirs("./conv_weights")
+        os.makedirs("./weights", exist_ok=True)
         torch.save(self.Q.state_dict(), f"./conv_weights/{self.filename}_Q.pt")
 
     
@@ -471,14 +469,15 @@ class Neural_Policy_iterator:
         is_paused = False  # Pause state flag
 
         original_epsilon = self.epsilon
+        
+        n_games = 0     # Number of games played
+        n_wins = 0      # Number of games won
+        n_steps = 0     # Number of steps in the current game (used to control the CNN training frequency)
+
         # Main loop of the policy iteration
-
-        n_games = 0
-        n_wins = 0
-        n_steps = 0
-
         while self.episodes <= self.max_episodes:
-            
+
+            # Count the number of steps in the current game
             n_steps += 1
 
             # Check if a key was pressed to lower or increase the fps of the renderer
@@ -547,14 +546,12 @@ class Neural_Policy_iterator:
             current_state = next_state
 
             # Only learn after 1/10 of the episodes passed
-            
+            #This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
             if self.episodes > self.max_episodes // 10 and n_steps % 10 == 0:
-                #Q network update
+                
+                #CNN-based Q-Network trained every 10 game steps
                 self.sample_and_learn()
                 
-                #This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
-                
-
             if terminal:
                 n_steps = 0
                 self.episodes += 1

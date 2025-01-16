@@ -386,7 +386,6 @@ class Neural_Policy_iterator:
     # Store the Q function weights in a file
     def store_Q(self):
         os.makedirs("./weights", exist_ok=True)
-
         torch.save(self.Q.state_dict(), f"./weights/{self.filename}_Q.pt")
     
     # Load the Q function weights from a file
@@ -451,18 +450,12 @@ class Neural_Policy_iterator:
             q_next_max = q_next.max(dim=1, keepdim=True)[0]
             q_target = rewards_tensor + (1 - terminals_tensor) * self.gamma * q_next_max
 
-        #print(f"Q_target: {q_target}")
         loss = torch.nn.MSELoss()(q_a, q_target)
-        #print(f"Loss: {loss.item():.4f}")
-
 
         # Backprop
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        # Debug log
-        #debug_log(self, current_states_tensor, q_values, loss)
 
         # Update target network occasionally
         self.learn_step_counter += 1
@@ -481,12 +474,13 @@ class Neural_Policy_iterator:
         is_paused = False  # Pause state flag
 
         original_epsilon = self.epsilon
+
+        n_games = 0     # Number of games played
+        n_wins = 0      # Number of games won
+
         # Main loop of the policy iteration
-
-        n_games = 0
-        n_wins = 0
-
         while self.episodes <= self.max_episodes:
+
             # Check if a key was pressed to lower or increase the fps of the renderer
             if self.renderer is not None:
                 for event in pygame.event.get():
@@ -550,12 +544,11 @@ class Neural_Policy_iterator:
             current_state = next_state
 
             # Only learn after 1/10 of the episodes passed
+            #This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
             if self.episodes > self.max_episodes // 10:
-                # Q network update
+
+                # MLP-based Q-network training
                 self.sample_and_learn()
-                '''
-                This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
-                '''
 
             if terminal:
                 self.episodes += 1
