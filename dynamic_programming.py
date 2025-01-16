@@ -8,7 +8,7 @@ from itertools import product
 from numpy import argmin, random
 from time import sleep
 import pygame
-from helper_functions import is_terminal, diff_norm, pacman_move, ghost_move, is_win_terminal, is_lose_terminal, ghost_move_manhattan
+from helper_functions import is_terminal, diff_norm, pacman_move, is_win_terminal, is_lose_terminal, ghost_move_pathfinding
 
 class States_enumerator:
     def __init__(self, map_filename="dumb_map", load_from_txt=False, logging=False):
@@ -369,7 +369,7 @@ class Value_iterator:
                     possible_ghosts_actions = []
                     ghosts_actions_pmfs = []
                     for ghost_index in range(1, self.number_of_movables):
-                        possible_ghost_action_list , pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
+                        possible_ghost_action_list , pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
                         possible_ghosts_actions.append(possible_ghost_action_list)
                         ghosts_actions_pmfs.append(pmf)
 
@@ -751,7 +751,7 @@ class Game:
                     possible_ghosts_actions = []
                     ghosts_actions_pmfs = []
                     for ghost_index in range(2, self.number_of_movables):
-                        action_list, pmf = ghost_move_manhattan(next_state, ghost_index, self.moves, self.map, self.power)
+                        action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
                         possible_ghosts_actions.append(action_list)
                         ghosts_actions_pmfs.append(pmf)
 
@@ -781,7 +781,7 @@ class Game:
                 possible_ghosts_actions = []
                 ghosts_actions_pmfs = []
                 for ghost_index in range(1, self.number_of_movables):
-                    action_list, pmf = ghost_move_manhattan( next_state, ghost_index, self.moves, self.map, self.power)
+                    action_list, pmf = ghost_move_pathfinding( next_state, ghost_index, self.moves, self.map, self.power)
                     possible_ghosts_actions.append(action_list)
                     ghosts_actions_pmfs.append(pmf)
                 
