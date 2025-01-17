@@ -607,3 +607,101 @@ class Neural_Policy_iterator:
                     print(f"Power increased to {self.power}")
                     print(f"{'*'*100}\n\n")
                 
+
+class Renderer:
+    def __init__(self, initializer, tile_size=50, fps=10):
+        # Save the initializer parameters
+        self.map = initializer.map
+        self.number_of_movables = initializer.number_of_movables
+        self.candies_positions = initializer.candies_positions
+
+        # Save the game parameters
+        self.tile_size = tile_size
+        self.fps = fps
+        
+        # Initialize the screen
+        self.screen = self.init_screen()
+
+        # Clock
+        self.clock = pygame.time.Clock()
+
+        # Game images initialization
+        self.pacman_image = None
+        self.ghost_image = None
+        self.candy_image = None
+        self.floor_image = None
+        self.wall_image = None
+        self.init_images()
+
+        self.pacman_images = {
+            0: pygame.image.load("./images/u_pacman.png"),
+            1: pygame.image.load("./images/d_pacman.png"),
+            2: pygame.image.load("./images/l_pacman.png"),
+            3: pygame.image.load("./images/r_pacman.png"),
+            4: pygame.image.load("./images/r_pacman.png"),
+        }
+
+    def init_screen(self):
+        pygame.display.set_caption("Pac-Man")
+        return pygame.display.set_mode((len(self.map[0]) * self.tile_size, len(self.map) * self.tile_size))
+    
+    def init_images(self):
+        self.pacman_image = pygame.image.load("./images/r_pacman.png")
+        self.pacman_image = pygame.transform.scale(self.pacman_image, (self.tile_size, self.tile_size))
+
+        # Ghost image for the first ghost (could be player controlled)
+        self.first_ghost_image = pygame.image.load("./images/ghost_1.png")
+        self.first_ghost_image = pygame.transform.scale(self.first_ghost_image, (self.tile_size, self.tile_size))
+        
+        # Ghost image for the other ghosts
+        self.ghost_image = pygame.image.load("./images/ghost_3.png")
+        self.ghost_image = pygame.transform.scale(self.ghost_image, (self.tile_size, self.tile_size))
+
+        self.candy_image = pygame.image.load("./images/candy_1.png")
+        self.candy_image = pygame.transform.scale(self.candy_image, (self.tile_size, self.tile_size))
+        self.floor_image = pygame.Surface((self.tile_size, self.tile_size))
+        self.floor_image.fill((0, 0, 0))
+        self.wall_image = pygame.image.load("./images/wall3.png")
+        self.wall_image = pygame.transform.scale(self.wall_image, (self.tile_size, self.tile_size))
+
+    def display_logo(self):
+        logo = pygame.image.load("./images/logo.png")
+        logo = pygame.transform.scale(logo, (len(self.map[0]) * self.tile_size, len(self.map) * self.tile_size))
+        self.screen.blit(logo, (0, 0))
+        pygame.display.flip()
+        sleep(3)
+
+    def clock_tick(self, fps=None):
+        if fps is not None:
+            self.clock.tick(fps)
+        else:
+            self.clock.tick(self.fps)
+
+    def render(self, state, action):
+        # Draw walls and floors
+        for y in range(len(self.map)):
+            for x in range(len(self.map[0])):
+                if self.map[y][x] == 1:
+                    self.screen.blit(self.wall_image, (x * self.tile_size, y * self.tile_size))
+                else: 
+                    self.screen.blit(self.floor_image, (x * self.tile_size, y * self.tile_size))
+
+        # Draw candies            
+        for candy_index in self.candies_positions:
+            if state[candy_index] == 1:
+                self.screen.blit(self.candy_image, (self.candies_positions[candy_index][0] * self.tile_size, self.candies_positions[candy_index][1] * self.tile_size))
+
+        # Draw pacman 
+        self.pacman_image = self.pacman_images[action]
+        self.pacman_image = pygame.transform.scale(self.pacman_image, (self.tile_size, self.tile_size))
+
+        self.screen.blit(self.pacman_image, (state[0][0] * self.tile_size, state[0][1] * self.tile_size))
+
+        # Draw ghosts
+        if self.number_of_movables > 1:
+            self.screen.blit(self.first_ghost_image, (state[1][0] * self.tile_size, state[1][1] * self.tile_size))
+        for ghost_index in range(2, self.number_of_movables):
+            self.screen.blit(self.ghost_image, (state[ghost_index][0] * self.tile_size, state[ghost_index][1] * self.tile_size))
+        
+        pygame.display.flip()
+        self.clock.tick(self.fps)
