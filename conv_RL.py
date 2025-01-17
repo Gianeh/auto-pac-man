@@ -221,7 +221,7 @@ class CNNNetwork(nn.Module):
 
 
 # Updated state encoding to create a 2D map representation
-def encode_state_as_map(state, map_shape, map, number_of_movables, candies_positions, encoded_map):
+def encode_state_as_map(state, number_of_movables, candies_positions, encoded_map):
 
     # Place Pacman
     pacman_x, pacman_y = state[0]
