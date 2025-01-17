@@ -221,16 +221,7 @@ class CNNNetwork(nn.Module):
 
 
 # Updated state encoding to create a 2D map representation
-def encode_state_as_map(state, map_shape, map, number_of_movables, candies_positions):
-    encoded_map = torch.zeros((5, *map_shape), dtype=torch.float32)  # 5 channels: floor, wall, candy, pacman, ghost
-
-    for y in range(map_shape[1]):
-        for x in range(map_shape[0]):
-            cell_value = map[y][x]
-            if cell_value == 0:  # Floor
-                encoded_map[0, x, y] = 1
-            elif cell_value == 1:  # Wall
-                encoded_map[1, x, y] = 1
+def encode_state_as_map(state, map_shape, map, number_of_movables, candies_positions, encoded_map):
 
     # Place Pacman
     pacman_x, pacman_y = state[0]
@@ -356,6 +347,17 @@ class Neural_Policy_iterator:
 
         # Episode counter
         self.episodes = 0
+
+        # Initialize the map encoding
+        self.encoded_map = torch.zeros((5, self.map_shape[0], self.map_shape[1]), dtype=torch.float32)  # 5 channels: floor, wall, candy, pacman, ghost
+        for y in range(self.map_shape[1]):
+            for x in range(self.map_shape[0]):
+                cell_value = self.map[y][x]
+                if cell_value == 0:  # Floor
+                    self.encoded_map[0, x, y] = 1
+                elif cell_value == 1:  # Wall
+                    self.encoded_map[1, x, y] = 1
+
     
     # Store the Q function weights in a file
     def store_Q(self):
@@ -405,14 +407,14 @@ class Neural_Policy_iterator:
         return self.move_reward
     
     def encode_state(self, state):
-        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions)
+        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
     
 
     def store_transition(self, state, action, reward, next_state, terminal):
         # Assuming `state` is a tensor that should be moved to the device
-        state = state
-        next_state = next_state
+        state = self.encode_state(state)
+        next_state = self.encode_state(next_state)
         self.replay_buffer.append((state, action, reward, next_state, terminal))
         if len(self.replay_buffer) > self.replay_capacity:
             self.replay_buffer.pop(0)
@@ -434,8 +436,8 @@ class Neural_Policy_iterator:
         transitions = sample(self.replay_buffer, self.batch_size)
         current_states, actions, rewards, next_states, dones = zip(*transitions)
 
-        current_states_tensor = torch.stack([self.encode_state(state) for state in current_states]).to(self.device)
-        next_states_tensor = torch.stack([self.encode_state(state) for state in next_states]).to(self.device)
+        current_states_tensor = torch.stack([state for state in current_states]).to(self.device)
+        next_states_tensor = torch.stack([next_state for next_state in next_states]).to(self.device)
         actions_tensor = torch.tensor(actions, dtype=torch.int64).view(-1, 1).to(self.device)
         rewards_tensor = torch.tensor(rewards, dtype=torch.float32).view(-1, 1).to(self.device)
         dones_tensor = torch.tensor(dones, dtype=torch.int8).view(-1, 1).to(self.device)
@@ -743,6 +745,7 @@ class Game:
         self.moves = policy_iterator.moves   
         self.reward = policy_iterator.reward
         self.map_shape = policy_iterator.map_shape
+        self.encoded_map = policy_iterator.encoded_map
         self.device = policy_iterator.device
 
         self.logging = logging
@@ -793,7 +796,7 @@ class Game:
     
 
     def encode_state(self, state):
-        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions)
+        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
 
 

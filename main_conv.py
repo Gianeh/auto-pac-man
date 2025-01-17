@@ -33,7 +33,7 @@ def main():
     state_initializer = State_initializer(map_filename="ClassicGrid", load_from_txt=True, logging=True)
     policy_iterator = Neural_Policy_iterator(state_initializer, renderer=None, logging=True, power=1, alpha = 0.01, gamma = 0.90, epsilon = 1.0, eat_reward = 100, move_reward=-5, lose_reward=-100, win_reward=1000)
 
-    #train_schedule(policy_iterator, args.max_episodes)
+    train_schedule(policy_iterator, args.max_episodes)
     pacman_game = Game(policy_iterator, pretrained=True, logging=False, power=2)
     pacman_game.run()
 
