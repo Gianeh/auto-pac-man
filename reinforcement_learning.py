@@ -537,8 +537,8 @@ class Game:
 
         power:          Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, 
                         power = 0 means the ghosts move randomly with uniform probability wrt the possible moves
-                        power = 1 means the ghosts move with a probability proportional to the inverse of the manhattan distance of A* paths to pacman
-                        power = 2 means the ghosts move with a probability proportional to the inverse of the squared manhattan distance of A* paths to pacman 
+                        power = 1 means the ghosts move with a probability proportional to the inverse of the A* path distances to pacman
+                        power = 2 means the ghosts move with a probability proportional to the inverse of the squared distance of A* paths to pacman 
                         and so on...
 
         logging:        Flag to enable logging of the game steps
