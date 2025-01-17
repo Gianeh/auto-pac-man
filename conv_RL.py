@@ -366,7 +366,7 @@ class Neural_Policy_iterator:
     # Load the Q function weights from a file
     def load_Q(self):
         if os.path.exists(f"./conv_weights/{self.filename}_Q.pt"):
-            self.Q.load_state_dict(torch.load(f"./conv_weights/{self.filename}_Q.pt"))
+            self.Q.load_state_dict(torch.load(f"./conv_weights/{self.filename}_Q.pt", weights_only=True))
             print(f"Pretrained weights loaded from ./conv_weights/{self.filename}_Q.pt")
         else:
             print(f"No pretrained weights found at ./conv_weights/{self.filename}_Q.pt")
@@ -705,3 +705,372 @@ class Renderer:
         
         pygame.display.flip()
         self.clock.tick(self.fps)
+
+
+class Game:
+    def __init__(self, policy_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False, measure_performance=False, monte_carlo=False): 
+        """
+        Game class to run the Pacman game with the policy learned from the value iteration algorithm (requires policy_iterator instance)
+
+        policy_iterator: policy_iterator instance, built as policy_iterator(enumerator, alpha, delta, epsilon, lose_cost, win_cost, move_cost, eat_cost, power, control_accuracy, logging)
+
+        pretrained:     Flag to load the policy from a txt file instead of the value iterator instance
+
+        tile_size:      Size of the tiles in the game window
+
+        fps:            Frames per second of the game
+
+        power:          Power parameter for the ghost moves, the higher the power the more the ghosts will try to get closer to pacman, 
+                        power = 0 means the ghosts move randomly with uniform probability wrt the possible moves
+                        power = 1 means the ghosts move with a probability proportional to the inverse of the manhattan distance of A* paths to pacman
+                        power = 2 means the ghosts move with a probability proportional to the inverse of the squared manhattan distance of A* paths to pacman 
+                        and so on...
+
+        logging:        Flag to enable logging of the game steps
+
+        measure_performance: Flag to enable the performance measurement of the policy
+
+        monte_carlo:    Flag to enable the Monte Carlo simulation of the game
+        """
+        
+        # Save the parameters from the value iterator
+        self.map = policy_iterator.map
+        self.possible_positions = policy_iterator.possible_positions
+        self.initial_state = policy_iterator.initial_state
+        self.current_state = self.initial_state.copy()
+        self.number_of_movables = policy_iterator.number_of_movables
+        self.candies_positions = policy_iterator.candies_positions
+        self.moves = policy_iterator.moves   
+        self.reward = policy_iterator.reward
+        self.map_shape = policy_iterator.map_shape
+        self.device = policy_iterator.device
+
+        self.logging = logging
+        self.measure_performance = measure_performance or monte_carlo
+        self.monte_carlo = monte_carlo
+
+        # Save the map filename
+        self.map_name= policy_iterator.filename
+
+        # Initialize the power parameter
+        if power == None:
+            self.power = policy_iterator.power
+        else:
+            self.power = power
+        
+        if pretrained:
+            policy_iterator.load_Q()
+
+        # Initialize the Q function
+        self.Q = policy_iterator.Q
+
+        # check if the dictionary is empty
+        if not self.Q:
+            raise ValueError("The Q function is not initialized. Please run the policy iteration algorithm first.")
+        
+        if not self.measure_performance:
+            self.renderer = Renderer(policy_iterator, tile_size, fps)
+        
+        # At test time, account for a minimum threshold in seconds, the number of candies eaten and the number of moves
+        if self.measure_performance:
+            self.loop_till_loss = True
+            self.logging = False
+            self.min_threshold = 600 # moves
+            self.max_threshold = 6000 # moves
+            self.candies_eaten = 0
+            self.number_of_moves = 0
+            self.efficiency_ratio = 0
+            self.reward_sum = 0
+
+            self.alpha = policy_iterator.alpha
+            self.epsilon = policy_iterator.epsilon
+            self.gamma = policy_iterator.gamma
+
+            self.lose_reward = policy_iterator.lose_reward
+            self.win_reward = policy_iterator.win_reward
+            self.move_reward = policy_iterator.move_reward
+            self.eat_reward = policy_iterator.eat_reward
+    
+
+    def encode_state(self, state):
+        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions)
+        return state_tensor.to(self.device)  # Move to GPU
+
+
+    def pi(self, state):
+        state_tensor = self.encode_state(state).unsqueeze(0)  # Add batch dimension
+        with torch.no_grad():
+            q_vals = self.Q(state_tensor)
+            return q_vals.argmax().item()
+
+
+    def respawn_candies(self, random_spawn=False):
+        while is_win_terminal(self.current_state, self.number_of_movables):
+            if len(self.candies_positions) == 1:
+                self.current_state[self.number_of_movables] = 1
+                new_pacman_position = choice(self.possible_positions)
+                while new_pacman_position in self.current_state[1:] or new_pacman_position == self.candies_positions[self.number_of_movables]:
+                    new_pacman_position = choice(self.possible_positions)
+                self.current_state[0] = new_pacman_position
+            else:
+                for candy_index in self.candies_positions:
+                    if not random_spawn:
+                        # Respawn all candies a part from the last one eaten
+                        if self.current_state[0] != self.candies_positions[candy_index]:
+                            self.current_state[candy_index] = 1
+                    else:
+                        # Randomly respawn one or more candies
+                        if choice([True, False]) and self.current_state[0] != self.candies_positions[candy_index]:
+                            self.current_state[candy_index] = 1
+
+
+    def run(self, ghost_controlled=False, loop_till_loss=False, measure_filename=""):
+        running = True
+
+        # reset measures for multiple tests
+        if self.measure_performance:
+            self.candies_eaten = 0
+            self.number_of_moves = 0
+            self.efficiency_ratio = 0
+            self.reward_sum = 0
+
+        if not (self.monte_carlo or self.measure_performance):
+            # Randomize the initial positions of all ghosts
+            for ghost_index in range(1, self.number_of_movables):
+                new_ghost_position = choice(self.possible_positions)
+                # Avoid placing a ghost on pacman's position
+                while new_ghost_position == self.current_state[0]:
+                    new_ghost_position = choice(self.possible_positions)
+                self.current_state[ghost_index] = new_ghost_position
+        
+        action = 0
+        is_paused = False
+
+        if not self.measure_performance:
+            # Before starting the game, display the logo 
+            self.renderer.display_logo()
+
+        while running:
+            if self.measure_performance:
+                if self.number_of_moves % 100 == 0:
+                    if measure_filename == "": print(f"Simulated number of moves: {self.number_of_moves}")
+                if self.number_of_moves == self.max_threshold:
+                    self.efficiency_ratio = self.candies_eaten / self.number_of_moves
+                    if measure_filename == "": print(f"Test passed - Maximum number of moves ({self.max_threshold}) reached\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    running = False
+                    continue
+
+            key_pressed = not ghost_controlled # track whether a KEYDOWN happened
+
+            # Draw current state every frame, so the window remains responsive 
+            if not self.measure_performance:
+                self.renderer.render(self.current_state, action)
+
+                # Collect events 
+                events = pygame.event.get()
+                for event in events:
+                    if event.type == pygame.QUIT:
+                        running = False
+                    elif event.type == pygame.KEYDOWN:
+                        # If any key was pressed, we consider it a turn
+                        key_pressed = True
+                        # If the key pressed was the pause key, we toggle the pause state
+                        if event.key == pygame.K_p:
+                            is_paused = not is_paused
+                            if self.logging: print(f"Game paused: {is_paused}")
+                
+                # If paused, skip game updates and slow the loop
+                if is_paused:
+                    self.renderer.clock_tick(10)  # Slow loop to save CPU
+                    continue
+
+            # If no key was pressed, we do nothing and skip to next iteration 
+            if not key_pressed:
+                # Limit CPU usage even when not moving
+                if not self.measure_performance:
+                    self.renderer.clock_tick()
+                continue
+
+            # If we get here, it means a key was pressed, so we process a turn
+            # Check win/lose conditions 
+            if loop_till_loss:
+                self.respawn_candies(random_spawn=not(self.monte_carlo or self.measure_performance))
+
+            elif is_win_terminal(self.current_state, self.number_of_movables):
+                print("Game over - You won")
+                running = False
+                sleep(2)
+                if not self.measure_performance:
+                    self.renderer.clock_tick()
+                if self.logging: 
+                    print(f"Wins, terminal state: {self.current_state}")
+
+                continue
+
+            if is_lose_terminal(self.current_state, self.number_of_movables):
+                # Pacman lost before the maximum threshold
+                if self.measure_performance:
+                    self.efficiency_ratio = self.candies_eaten / self.number_of_moves
+                    if measure_filename == "": print(f"Test failed - Pacman eaten by a ghost after {self.number_of_moves} moves\n\tPacman efficiency ratio: {self.efficiency_ratio}\n\tCandies eaten: {self.candies_eaten}")
+                    running = False
+                else:
+                    self.renderer.clock_tick()
+
+                print("Game over - You lost")
+                running = False
+                sleep(2)
+
+                if self.logging:
+                    print(f"Defeat, terminal state: {self.current_state}")
+
+                continue
+
+            # Move pacman according to the policy
+            action = self.pi(self.current_state)
+
+            next_state, eaten = pacman_move(self.current_state, self.moves[action], self.number_of_movables, self.candies_positions, self.map)
+
+            invalid = False
+            # If the pacman move is invalid, we keep the current state
+            if next_state == False:
+                next_state = self.current_state.copy()
+                invalid = True
+
+            # Account for the number of moves
+            if self.measure_performance:
+                self.number_of_moves += 1
+                self.candies_eaten += int(eaten)
+
+            if self.logging: 
+                print(f"Pacman action: {action} triggered transition from State: {self.current_state} to State: {next_state}")
+
+            # Ghost movement
+            if ghost_controlled:
+                # Player controls the first ghost
+                ghost_new_pos = next_state[1]  # current ghost 1 position
+
+                # Re-check the same events array (it has the key that was pressed):
+                for event in events:
+                    if event.type == pygame.KEYDOWN:
+                        if (event.key == pygame.K_UP and self.map[ghost_new_pos[1] - 1][ghost_new_pos[0]] != 1):
+                            ghost_new_pos = (ghost_new_pos[0], ghost_new_pos[1] - 1)
+                        elif (event.key == pygame.K_DOWN and self.map[ghost_new_pos[1] + 1][ghost_new_pos[0]] != 1):
+                            ghost_new_pos = (ghost_new_pos[0], ghost_new_pos[1] + 1)
+                        elif (event.key == pygame.K_LEFT and self.map[ghost_new_pos[1]][ghost_new_pos[0] - 1] != 1):
+                            ghost_new_pos = (ghost_new_pos[0] - 1, ghost_new_pos[1])
+                        elif (event.key == pygame.K_RIGHT and self.map[ghost_new_pos[1]][ghost_new_pos[0] + 1] != 1):
+                            ghost_new_pos = (ghost_new_pos[0] + 1, ghost_new_pos[1])
+
+
+                next_state[1] = ghost_new_pos
+
+                if self.logging:
+                    print(f"Controlled ghost 1 action triggered transition to State: {next_state}")
+
+                # Stochastic moves for additional ghosts, if any
+                if self.number_of_movables > 2:
+                    possible_ghosts_actions = []
+                    ghosts_actions_pmfs = []
+                    for ghost_index in range(2, self.number_of_movables):
+                        action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
+                        possible_ghosts_actions.append(action_list)
+                        ghosts_actions_pmfs.append(pmf)
+
+                    # Build permutations
+                    permuted_actions = [list(p) for p in product(*possible_ghosts_actions)]
+                    permuted_pmfs = [list(p) for p in product(*ghosts_actions_pmfs)]
+                    ghosts_action_permutations_pmfs = [prod(pmfs) for pmfs in permuted_pmfs]
+
+                    # Sample a combination
+                    ghosts_actions = choices(permuted_actions, weights=ghosts_action_permutations_pmfs, k=1)[0]
+
+                    # Apply the chosen moves
+                    updated_positions = []
+                    for i, ga in enumerate(ghosts_actions):
+                        # ghost_index = 2 + i
+                        gx, gy = next_state[2 + i]
+                        updated_positions.append((gx + ga[0], gy + ga[1]))
+
+                    # Rebuild next_state (Pac-Man = next_state[0], ghost1= [1])
+                    next_state = [next_state[0], next_state[1]] + updated_positions + next_state[self.number_of_movables:]
+
+                    if self.logging:
+                        print(f"Ghosts actions triggered transition to State: {next_state}")
+
+            else:
+                if not self.measure_performance:
+                    # Event handling - listen for arrow key down and up to update the fps
+                    for event in events:
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_UP:
+                                self.renderer.fps += 50
+                            if event.key == pygame.K_DOWN:
+                                self.renderer.fps -= 50
+                            if self.renderer.fps <= 0:
+                                self.renderer.fps = 1
+                            if event.key == pygame.K_ESCAPE:
+                                pygame.quit()
+                                exit()
+
+                # If ghost_controlled = False, all ghosts move stochastically
+                possible_ghosts_actions = []
+                ghosts_actions_pmfs = []
+                for ghost_index in range(1, self.number_of_movables):
+                    action_list, pmf = ghost_move_pathfinding( next_state, ghost_index, self.moves, self.map, self.power)
+                    possible_ghosts_actions.append(action_list)
+                    ghosts_actions_pmfs.append(pmf)
+                
+                # Build permutations
+                permuted_actions = [list(p) for p in product(*possible_ghosts_actions)]
+                permuted_pmfs = [p for p in product(*ghosts_actions_pmfs)]
+                ghosts_action_permutations_pmfs = [prod(pmfs) for pmfs in permuted_pmfs]
+
+                # Randomly choose the configuration
+                ghosts_actions = choices(permuted_actions, weights=ghosts_action_permutations_pmfs, k=1)[0]
+
+                updated_positions = []
+                for i, ga in enumerate(ghosts_actions):
+                    gx, gy = next_state[1 + i]
+                    updated_positions.append((gx + ga[0], gy + ga[1]))
+
+                next_state = [next_state[0]] + updated_positions + next_state[self.number_of_movables:]
+
+                if self.logging:
+                    print(f"Ghosts actions triggered transition to State: {next_state}")
+
+            # Update current state
+            self.current_state = next_state
+
+            # Accumuate the stage cost
+            if self.measure_performance:
+                self.reward_sum += self.reward(self.current_state, eaten)
+            else:
+                self.renderer.clock_tick()
+
+
+        if self.measure_performance and not self.monte_carlo:
+            params = f"efficiency = {self.efficiency_ratio}, number_of_moves = {self.number_of_moves}, candies_eaten = {self.candies_eaten} - alpha = {self.alpha}, delta = {self.delta}, epsilon = {self.epsilon}, lose_cost = {self.lose_cost}, win_cost = {self.win_cost}, move_cost = {self.move_cost}, eat_cost = {self.eat_cost}, training_power = {self.training_power}, game_power = {self.power}"
+            if self.number_of_moves < self.min_threshold:
+                with open("./parallel_jobs/"+measure_filename+"_under_threshold.txt", "a") as file:
+                    file.write(f"{self.map_name} - {params}\n")
+            elif self.number_of_moves < self.max_threshold:
+                with open("./parallel_jobs/"+measure_filename+"_between_threshold.txt", "a") as file:
+                    file.write(f"{self.map_name} - {params}\n")
+            else:
+                with open("./parallel_jobs/"+measure_filename+"_over_threshold.txt", "a") as file:
+                    file.write(f"{self.map_name} - {params}\n")
+
+        elif self.monte_carlo:
+            performance_params = f"efficiency = {self.efficiency_ratio}, stage_cost_sum = {self.reward_sum}"
+            if self.number_of_moves < self.min_threshold:
+                with open("./monte_carlo_RL/"+measure_filename+"_under_threshold.txt", "a") as file:
+                    file.write(f"{performance_params}\n")
+            elif self.number_of_moves < self.max_threshold:
+                with open("./monte_carlo_RL/"+measure_filename+"_between_threshold.txt", "a") as file:
+                    file.write(f"{performance_params}\n")
+            else:
+                with open("./monte_carlo_RL/"+measure_filename+"_over_threshold.txt", "a") as file:
+                    file.write(f"{performance_params}\n")
+
+        # Quit the game once we exit the loop 
+        pygame.quit()
