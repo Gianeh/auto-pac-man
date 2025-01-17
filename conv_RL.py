@@ -407,7 +407,7 @@ class Neural_Policy_iterator:
         return self.move_reward
     
     def encode_state(self, state):
-        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions, self.encoded_map)
+        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
     
 
@@ -796,7 +796,7 @@ class Game:
     
 
     def encode_state(self, state):
-        state_tensor = encode_state_as_map(state, self.map_shape, self.map, self.number_of_movables, self.candies_positions, self.encoded_map)
+        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
 
 
