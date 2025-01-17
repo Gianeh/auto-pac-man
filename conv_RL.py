@@ -359,7 +359,7 @@ class Neural_Policy_iterator:
     
     # Store the Q function weights in a file
     def store_Q(self):
-        os.makedirs("./weights", exist_ok=True)
+        os.makedirs("./conv_weights", exist_ok=True)
         torch.save(self.Q.state_dict(), f"./conv_weights/{self.filename}_Q.pt")
 
     
