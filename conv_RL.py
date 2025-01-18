@@ -219,29 +219,29 @@ class CNNNetwork(nn.Module):
 
 
 # Updated state encoding to create a 2D map representation
-def encode_state_as_map(state, number_of_movables, candies_positions, encoded_map):
+def encode_state_as_map(state, number_of_movables, candies_positions, map, encoded_map):
 
     # Place floors
-    for y in range(encoded_map.shape[2]):
-        for x in range(encoded_map.shape[1]):
-            if encoded_map[0, x, y] == 0:
-                encoded_map[0, x, y] = 1
+    for y in range(encoded_map.shape[1]):
+        for x in range(encoded_map.shape[2]):
+            if map[y][x] == 0:  # Floor
+                encoded_map[0, y, x] = 1
 
     # Place Pacman
     pacman_x, pacman_y = state[0]
-    encoded_map[3, pacman_x, pacman_y] = 1
+    encoded_map[3, pacman_y, pacman_x] = 1
 
     # Place Ghosts
     for i in range(1, number_of_movables):
         ghost_x, ghost_y = state[i]
-        encoded_map[4, ghost_x, ghost_y] = 1
+        encoded_map[4, ghost_y, ghost_x] = 1
 
     # Place Candies
     for candy_idx in range(number_of_movables, len(state)):
         candy_state = state[candy_idx]
         candy_x, candy_y = candies_positions[candy_idx]
         if candy_state == 1:  # Candy is active
-            encoded_map[2, candy_x, candy_y] = 1
+            encoded_map[2, candy_y, candy_x] = 1
 
     return encoded_map
 
@@ -283,7 +283,7 @@ class Neural_Policy_iterator:
         """
         # Save the initializer parameters
         self.map = initializer.map
-        self.map_shape = (len(self.map[0]), len(self.map))  # Width, Height
+        self.map_shape = (len(self.map), len(self.map[0]))  # Height, Width
         self.initial_state = initializer.initial_state
         self.number_of_movables = initializer.number_of_movables
         self.number_of_ghosts = initializer.number_of_ghosts
@@ -354,11 +354,11 @@ class Neural_Policy_iterator:
 
         # Initialize the map encoding with walls
         self.encoded_map = torch.zeros((5, self.map_shape[0], self.map_shape[1]), dtype=torch.float32)  # 5 channels: floor, wall, candy, pacman, ghost
-        for y in range(self.map_shape[1]):
-            for x in range(self.map_shape[0]):
+        for y in range(self.map_shape[0]):
+            for x in range(self.map_shape[1]):
                 cell_value = self.map[y][x]
                 if cell_value == 1:  # Wall
-                    self.encoded_map[1, x, y] = 1
+                    self.encoded_map[1, y, x] = 1
 
     
     # Store the Q function weights in a file
@@ -413,7 +413,7 @@ class Neural_Policy_iterator:
         self.encoded_map[2, :, :] = 0  # Reset candies
         self.encoded_map[3, :, :] = 0  # Reset pacman
         self.encoded_map[4, :, :] = 0  # Reset ghosts
-        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
+        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.map, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
     
 
@@ -811,7 +811,7 @@ class Game:
         self.encoded_map[2, :, :] = 0  # Reset candies
         self.encoded_map[3, :, :] = 0  # Reset pacman
         self.encoded_map[4, :, :] = 0  # Reset ghosts
-        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
+        state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.map, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
 
 
