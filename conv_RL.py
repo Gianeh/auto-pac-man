@@ -203,17 +203,15 @@ class CNNNetwork(nn.Module):
         super(CNNNetwork, self).__init__()
         self.device = device  # Store the device
         # Define a simple CNN with convolutional and fully connected layers
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(128 * 7 * 7, 256)  # Assuming input map is 7x7 after pooling
+        self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(32 * 7 * 7, 256)  # Assuming input map is 7x7 after pooling
         self.fc2 = nn.Linear(256, action_dim)
         self.to(self.device)  # Move the model to the specified device
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
         x = F.adaptive_avg_pool2d(x, (7, 7))  # Ensure consistent size
         x = torch.flatten(x, start_dim=1)      # Flatten for fully connected layers
         x = F.relu(self.fc1(x))
@@ -222,6 +220,12 @@ class CNNNetwork(nn.Module):
 
 # Updated state encoding to create a 2D map representation
 def encode_state_as_map(state, number_of_movables, candies_positions, encoded_map):
+
+    # Place floors
+    for y in range(encoded_map.shape[2]):
+        for x in range(encoded_map.shape[1]):
+            if encoded_map[0, x, y] == 0:
+                encoded_map[0, x, y] = 1
 
     # Place Pacman
     pacman_x, pacman_y = state[0]
@@ -305,13 +309,13 @@ class Neural_Policy_iterator:
 
         # Replay buffer for experience replay
         self.replay_buffer = []
-        self.replay_capacity = 200000 
+        self.replay_capacity = 100000 
 
         # How many transitions to sample from the replay buffer for each training step of the Q-network
-        self.batch_size = 200
+        self.batch_size = 128
 
         # Number of trainig steps (of the Q-network) before updating the target network
-        self.update_target_steps = 50
+        self.update_target_steps = 1000
 
         # Counter for the number of learning steps of the Q-network
         self.learn_step_counter = 0
@@ -348,14 +352,12 @@ class Neural_Policy_iterator:
         # Episode counter
         self.episodes = 0
 
-        # Initialize the map encoding
+        # Initialize the map encoding with walls
         self.encoded_map = torch.zeros((5, self.map_shape[0], self.map_shape[1]), dtype=torch.float32)  # 5 channels: floor, wall, candy, pacman, ghost
         for y in range(self.map_shape[1]):
             for x in range(self.map_shape[0]):
                 cell_value = self.map[y][x]
-                if cell_value == 0:  # Floor
-                    self.encoded_map[0, x, y] = 1
-                elif cell_value == 1:  # Wall
+                if cell_value == 1:  # Wall
                     self.encoded_map[1, x, y] = 1
 
     
@@ -407,6 +409,10 @@ class Neural_Policy_iterator:
         return self.move_reward
     
     def encode_state(self, state):
+        self.encoded_map[0, :, :] = 0  # Reset floors
+        self.encoded_map[2, :, :] = 0  # Reset candies
+        self.encoded_map[3, :, :] = 0  # Reset pacman
+        self.encoded_map[4, :, :] = 0  # Reset ghosts
         state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
     
@@ -458,7 +464,7 @@ class Neural_Policy_iterator:
         self.learn_step_counter += 1
         if self.learn_step_counter % self.update_target_steps == 0:
             self.Q_target.load_state_dict(self.Q.state_dict())
-            print("\nUpdated target network\n")
+            #print("\nUpdated target network\n")
 
     def run(self):
         if self.logging: 
@@ -518,8 +524,13 @@ class Neural_Policy_iterator:
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
-            for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
+            # First ghost moves according to power setting
+            first_ghost_action_list, first_ghost_pmf = ghost_move_pathfinding(next_state, 1, self.moves, self.map, self.power)
+            possible_ghosts_actions.append(first_ghost_action_list)
+            ghosts_actions_pmfs.append(first_ghost_pmf)
+            # Other ghosts move randomly
+            for ghost_index in range(2, self.number_of_movables):
+                possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, power=0)
                 possible_ghosts_actions.append(possible_ghost_action_list)
                 ghosts_actions_pmfs.append(pmf)
 
@@ -550,9 +561,9 @@ class Neural_Policy_iterator:
 
             # Only learn after 1/10 of the episodes passed
             #This enables the memory to initially fill with meaningless but explorative actions using high epsilon values.
-            if self.episodes > self.max_episodes // 10 and n_steps % 10 == 0:
+            if self.episodes > self.max_episodes // 10:
                 
-                #CNN-based Q-Network trained every 10 game steps
+                #CNN-based Q-Network trained
                 self.sample_and_learn()
                 
             if terminal:
@@ -796,6 +807,10 @@ class Game:
     
 
     def encode_state(self, state):
+        self.encoded_map[0, :, :] = 0  # Reset floors
+        self.encoded_map[2, :, :] = 0  # Reset candies
+        self.encoded_map[3, :, :] = 0  # Reset pacman
+        self.encoded_map[4, :, :] = 0  # Reset ghosts
         state_tensor = encode_state_as_map(state, self.number_of_movables, self.candies_positions, self.encoded_map)
         return state_tensor.to(self.device)  # Move to GPU
 

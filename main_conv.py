@@ -31,9 +31,10 @@ def main():
 
     #Renderer(state_initializer, fps=10)
     state_initializer = State_initializer(map_filename="ClassicGrid", load_from_txt=True, logging=True)
-    policy_iterator = Neural_Policy_iterator(state_initializer, renderer=None, logging=True, power=1, alpha = 0.01, gamma = 0.90, epsilon = 1.0, eat_reward = 100, move_reward=-5, lose_reward=-100, win_reward=1000)
-
-    train_schedule(policy_iterator, args.max_episodes)
+    policy_iterator = Neural_Policy_iterator(state_initializer, max_episodes=6000, renderer=None, logging=True, power=2, alpha = 0.0002, gamma = 0.95, epsilon = 1.0, min_epsilon=0.1, eat_reward = 10, move_reward=-1, lose_reward=-500, win_reward=100)
+    policy_iterator.run()
+    policy_iterator.store_Q()
+    #train_schedule(policy_iterator, args.max_episodes)
     pacman_game = Game(policy_iterator, pretrained=True, logging=False, power=2)
     pacman_game.run()
 
