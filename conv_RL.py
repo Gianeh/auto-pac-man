@@ -156,7 +156,7 @@ class State_initializer:
         return number_of_states, number_of_terminal_states
     
 
-def debug_log(self, current_states_tensor, q_values, loss):
+def debug_log(self, q_values, loss):
     """
     Call this right after backprop (or wherever) to check for strange behavior.
     Example call from sample_and_learn():
@@ -315,7 +315,7 @@ class Neural_Policy_iterator:
         self.batch_size = 128
 
         # Number of trainig steps (of the Q-network) before updating the target network
-        self.update_target_steps = 1000
+        self.update_target_steps = 5000
 
         # Counter for the number of learning steps of the Q-network
         self.learn_step_counter = 0
@@ -524,10 +524,12 @@ class Neural_Policy_iterator:
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
+
             # First ghost moves according to power setting
             first_ghost_action_list, first_ghost_pmf = ghost_move_pathfinding(next_state, 1, self.moves, self.map, self.power)
             possible_ghosts_actions.append(first_ghost_action_list)
             ghosts_actions_pmfs.append(first_ghost_pmf)
+
             # Other ghosts move randomly
             for ghost_index in range(2, self.number_of_movables):
                 possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, power=0)
@@ -565,6 +567,8 @@ class Neural_Policy_iterator:
                 
                 #CNN-based Q-Network trained
                 self.sample_and_learn()
+                # Decay epsilon linearly towards 0 at the end of the training
+                self.epsilon = max(self.min_epsilon, original_epsilon - (original_epsilon / self.max_episodes) * 2.5 * self.episodes) 
                 
             if terminal:
                 n_steps = 0
