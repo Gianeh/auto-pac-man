@@ -272,7 +272,6 @@ class Policy_iterator:
 
         return action_argmax
 
-
     def run(self):
         if self.logging: 
             print(f"Running Policy Iteration algorithm for {self.max_episodes} episodes...\n")
@@ -325,8 +324,15 @@ class Policy_iterator:
             # Stochastic ghost moves and their probabilities
             possible_ghosts_actions = []
             ghosts_actions_pmfs = []
-            for ghost_index in range(1, self.number_of_movables):
-                possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, self.power)
+
+            # First ghost moves according to power setting
+            first_ghost_action_list, first_ghost_pmf = ghost_move_pathfinding(next_state, 1, self.moves, self.map, self.power)
+            possible_ghosts_actions.append(first_ghost_action_list)
+            ghosts_actions_pmfs.append(first_ghost_pmf)
+
+            # Other ghosts move randomly
+            for ghost_index in range(2, self.number_of_movables):
+                possible_ghost_action_list, pmf = ghost_move_pathfinding(next_state, ghost_index, self.moves, self.map, power=0)
                 possible_ghosts_actions.append(possible_ghost_action_list)
                 ghosts_actions_pmfs.append(pmf)
 
@@ -393,10 +399,7 @@ class Policy_iterator:
 
                 # Every 100 episodes print the winrate and epsilon
                 if self.logging and self.episodes % 100 == 0: 
-                    print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, wins: {n_wins}, current epsilon: {self.epsilon}")
-
-                # Decay epsilon linearly towards 0 at the end of the training
-                #self.epsilon = max(self.min_epsilon, original_epsilon - (original_epsilon / self.max_episodes) * 5 * self.episodes) 
+                    print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, wins: {n_wins}, current epsilon: {self.epsilon}") 
 
                 # Decay epsilon exponentially towards 0 at the end of the training
                 self.epsilon = self.min_epsilon + ((original_epsilon - self.min_epsilon) * exp(-0.00001 * self.episodes))
@@ -422,7 +425,6 @@ class Policy_iterator:
                     self.Q[eval(key)] = float(value)
         else:
             print("The Q function file does not exist yet")
-
 
 class Renderer:
     def __init__(self, initializer, tile_size=50, fps=10):
@@ -521,7 +523,6 @@ class Renderer:
         
         pygame.display.flip()
         self.clock.tick(self.fps)
-
 
 class Game:
     def __init__(self, policy_iterator, pretrained=True, tile_size=32, fps=10, power=None, logging=False, measure_performance=False, monte_carlo=False): 
