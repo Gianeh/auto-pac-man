@@ -228,9 +228,10 @@ class Policy_iterator:
         self.renderer = renderer
 
     def reward(self, state, eaten):
+        r = 0
         # if pacman is eaten by a ghost
         if state[0] in state[1:self.number_of_movables]:
-            return self.lose_reward
+            r += self.lose_reward
         # -- Elif pacman is adjacent (including diagonals) to a ghost, it's penalized
         for i in range(1, self.number_of_movables):
             ghost_x, ghost_y = state[i]  # Ghost
@@ -249,15 +250,15 @@ class Policy_iterator:
             
             # If the ghost is in any of those neighboring cells, apply the lose reward
             if (ghost_x, ghost_y) in neighbors:
-                return self.lose_reward
+                r += self.lose_reward/5
             
         # if pacman ate a candy
         if eaten:
             if sum(state[self.number_of_movables:]) == 0:
-                return self.win_reward
-            return self.eat_reward
+                r += self.win_reward
+            r += self.eat_reward
         # otherwise
-        return self.move_reward
+        return r + self.move_reward
 
     def pi(self, state):
         # exploration
