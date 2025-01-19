@@ -1,4 +1,5 @@
-from deep_reinforcement_learning import Neural_Policy_iterator, Renderer, State_initializer, Game
+from mlp_reinforcement_learning import Neural_Policy_iterator, Renderer, Game
+from helper_functions import State_initializer
 
 state_initializer = State_initializer(map_filename="ez_map", logging=True, load_from_txt=False)
 #Renderer(state_initializer, fps=15)
