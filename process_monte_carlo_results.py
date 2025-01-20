@@ -62,7 +62,7 @@ for y_index, gp in enumerate(game_powers):
         dz = counts[i]
         ax.bar3d(x, y, z, dx, dy, dz, color=color, alpha=0.7)
 
-ax.set_xlabel('Stage Reward')
+ax.set_xlabel('Cumulative Reward')
 ax.set_ylabel('Game Power')
 ax.set_zlabel('Frequency')
 
