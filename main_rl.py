@@ -1,7 +1,7 @@
 from reinforcement_learning import State_initializer, Policy_iterator, Renderer, Game
 import argparse
 
-def main(filename, train, load_checkpoint, max_episodes, render_training, logging, alpha, gamma, epsilon, power, eat_reward, move_reward, lose_reward, win_reward, game_power, loop_till_loss, ghost_controlled):
+def main(filename, train, load_checkpoint, max_episodes, render_training, logging, alpha, gamma, epsilon, min_epsilon, power, eat_reward, move_reward, lose_reward, win_reward, game_power, loop_till_loss, ghost_controlled):
     # Initialize environment
     state_initializer = State_initializer(map_filename=filename, logging=True)
     renderer = None
@@ -9,7 +9,7 @@ def main(filename, train, load_checkpoint, max_episodes, render_training, loggin
         renderer = Renderer(state_initializer, tile_size=50, fps=15)
     policy_iterator = Policy_iterator(state_initializer, max_episodes=max_episodes,
                                         renderer=renderer,
-                                        logging=logging, alpha=alpha, gamma=gamma, epsilon=epsilon, power=power,
+                                        logging=logging, alpha=alpha, gamma=gamma, epsilon=epsilon, min_epsilon=min_epsilon, power=power,
                                         eat_reward = eat_reward, move_reward=move_reward, lose_reward=lose_reward, win_reward=win_reward)
     if train:
         if load_checkpoint: policy_iterator.load_Q()
@@ -30,13 +30,14 @@ if __name__ == "__main__":
 
     # Training hyperparameters
     parser.add_argument("--alpha", type=float, default=0.05, help="The learning rate")
-    parser.add_argument("--gamma", type=float, default=0.8, help="The discount factor")
+    parser.add_argument("--gamma", type=float, default=0.95, help="The discount factor")
     parser.add_argument("--epsilon", type=float, default=1.0, help="The exploration rate")
-    parser.add_argument("--power", type=int, default=5, help="The power of the distance function")
-    parser.add_argument("--eat_reward", type=int, default=1000, help="The reward for eating a candy")
-    parser.add_argument("--move_reward", type=int, default=-10, help="The reward for moving")
+    parser.add_argument("--min_epsilon", type=float, default=0.05, help="The minimum exploration rate")
+    parser.add_argument("--power", type=int, default=2, help="The power of the distance function")
+    parser.add_argument("--eat_reward", type=int, default=20, help="The reward for eating a candy")
+    parser.add_argument("--move_reward", type=int, default=-5, help="The reward for moving")
     parser.add_argument("--lose_reward", type=int, default=-500, help="The reward for losing")
-    parser.add_argument("--win_reward", type=int, default=10000, help="The reward for winning")
+    parser.add_argument("--win_reward", type=int, default=100, help="The reward for winning")
 
     # Game Parameters
     parser.add_argument("--game_power", type=int, help="The power of the distance function for the game (default is the --power arg chosen at run time)")

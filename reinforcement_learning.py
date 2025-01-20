@@ -149,7 +149,7 @@ class State_initializer:
         return number_of_states, number_of_terminal_states
     
 class Policy_iterator:
-    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e-1, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, random_spawn=False ,logging=False):
+    def __init__(self, initializer, renderer=None, max_episodes=1000, pretrained=False, alpha=1e-1, gamma=9e-1, epsilon=1e-1, min_epsilon=5e-2, lose_reward=-1e3, win_reward=5e3, move_reward=-1, eat_reward=1e1, power=10, random_spawn=False, logging=False):
         """
         Generalized Policy iteration algorithm (requires State_initializer instance)
 
@@ -301,6 +301,9 @@ class Policy_iterator:
                                 self.renderer.fps = 1
                         elif event.key == pygame.K_p:  # Toggle pause
                             is_paused = not is_paused
+                    elif event.type == pygame.QUIT:
+                        pygame.quit()
+                        return
             
             # If paused, skip game updates and slow the loop
             if is_paused:
@@ -718,10 +721,9 @@ class Game:
                     running = False
                 else:
                     self.renderer.clock_tick()
-
-                print("Game over - You lost")
-                running = False
-                sleep(2)
+                    print("Game over - You lost")
+                    running = False
+                    sleep(2)
 
                 if self.logging:
                     print(f"Defeat, terminal state: {self.current_state}")

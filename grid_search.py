@@ -1,7 +1,7 @@
 from reinforcement_learning import State_initializer, Policy_iterator, Game
 
 # Grid search for hyperparameter tuning
-maps = ["ezz_map"]
+maps = ["map_1"]
 epsilons = [1, 0.1]
 alphas = [0.7, 0.9]
 gammas = [0.9]
@@ -25,7 +25,7 @@ for map in maps:
                             for eat_cost in eat_costs:
                                 for training_power in training_powers:
                                     print("\n\n"+"#"*170)
-                                    print(f"\033[92mRunning training with map: {map}, epsilon: {epsilon}, alpha: {alpha}, lose_cost: {lose_cost}, win_cost: {win_cost}, move_cost: {move_cost}, eat_cost: {eat_cost}, training_power: {training_power}\033[0m")
+                                    print(f"\033[92mRunning training with map: {map}, epsilon: {epsilon}, gamma: {gamma}, alpha: {alpha}, lose_cost: {lose_cost}, win_cost: {win_cost}, move_cost: {move_cost}, eat_cost: {eat_cost}, training_power: {training_power}\033[0m")
                                     print("#"*170, end="\n\n")
                                     enumerator = State_initializer(map_filename=map, logging=False)
                                     value_iterator = Policy_iterator(enumerator, alpha=alpha, epsilon=epsilon, gamma=gamma, lose_cost=lose_cost, win_cost=win_cost, move_cost=move_cost, eat_cost=eat_cost, power=training_power, logging=True)
