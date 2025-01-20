@@ -10,7 +10,7 @@ def main(filename, train, load_checkpoint, max_episodes, render_training, loggin
     policy_iterator = Policy_iterator(state_initializer, max_episodes=max_episodes,
                                         renderer=renderer,
                                         logging=logging, alpha=alpha, gamma=gamma, epsilon=epsilon, min_epsilon=min_epsilon, power=power,
-                                        eat_reward = eat_reward, move_reward=move_reward, lose_reward=lose_reward, win_reward=win_reward)
+                                        eat_reward = eat_reward, move_reward=move_reward, lose_reward=lose_reward, win_reward=win_reward, random_spawn=False)
     if train:
         if load_checkpoint: policy_iterator.load_Q()
         policy_iterator.run()
@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_checkpoint", default=False, action='store_true', help="Whether to load a checkpoint")
     parser.add_argument("--max_episodes", type=int, default=500000, help="The maximum number of episodes to run")
     parser.add_argument("--render_training", default=False, action='store_true', help="Whether to render the training")
+    parser.add_argument("--random_spawn", default=False, action='store_true', help="Whether to spawn the pacman, ghosts and candies randomly")
     parser.add_argument("--logging", default=False, action='store_true', help="Whether to log the training")
 
     # Training hyperparameters
