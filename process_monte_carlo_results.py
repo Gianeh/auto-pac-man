@@ -62,11 +62,11 @@ for y_index, gp in enumerate(game_powers):
         dz = counts[i]
         ax.bar3d(x, y, z, dx, dy, dz, color=color, alpha=0.7)
 
-ax.set_xlabel('Stage Cost')
+ax.set_xlabel('Cumulative Cost')
 ax.set_ylabel('Game Power')
 ax.set_zlabel('Frequency')
 
-tick_positions = bin_centers[::2]  # Only show some bins
+tick_positions = bin_centers[::3]  # Only show some bins
 ax.set_xticks(tick_positions)
 ax.set_xticklabels([f"{val:.1e}" for val in tick_positions])
 
