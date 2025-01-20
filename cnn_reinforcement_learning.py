@@ -179,7 +179,7 @@ class Neural_Policy_iterator:
     # Load the Q function weights from a file
     def load_Q(self):
         if os.path.exists(f"./cnn_weights/{self.filename}_Q.pt"):
-            self.Q.load_state_dict(torch.load(f"./cnn_weights/{self.filename}_Q.pt", weights_only=True))
+            self.Q.load_state_dict(torch.load(f"./cnn_weights/{self.filename}_Q.pt", weights_only=True, map_location=torch.device(self.device)))
             print(f"Pretrained weights loaded from ./cnn_weights/{self.filename}_Q.pt")
         else:
             print(f"No pretrained weights found at ./cnn_weights/{self.filename}_Q.pt")
