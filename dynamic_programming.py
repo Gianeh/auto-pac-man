@@ -324,7 +324,7 @@ class Value_iterator:
             
             # If the ghost is in any of those neighboring cells, apply the lose cost
             if (ghost_x, ghost_y) in neighbors:
-                return self.lose_cost
+                return self.lose_cost/4
             
         # if pacman ate a candy
         if eaten:

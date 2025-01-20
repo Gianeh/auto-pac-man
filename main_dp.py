@@ -24,10 +24,11 @@ if __name__ == "__main__":
     parser.add_argument("--delta", type=float, default=0.01, help="The maximum value of absolute difference between two iterations of the Value function")
     parser.add_argument("--epsilon", type=float, default=1.0, help="The accuracy of the value function from the optimum")
     parser.add_argument("--power", type=int, default=2, help="The power of the distance function")
-    parser.add_argument("--eat_cost", type=int, default=20, help="The cost for eating a candy")
-    parser.add_argument("--move_cost", type=int, default=-5, help="The cost for moving")
-    parser.add_argument("--lose_cost", type=int, default=-500, help="The cost for losing")
-    parser.add_argument("--win_cost", type=int, default=100, help="The cost for winning")
+    parser.add_argument("--eat_cost", type=int, default=-1, help="The cost for eating a candy")
+    parser.add_argument("--move_cost", type=int, default=1, help="The cost for moving")
+    parser.add_argument("--lose_cost", type=int, default=200, help="The cost for losing")
+    parser.add_argument("--win_cost", type=int, default=-500, help="The cost for winning")
+
 
     # Game Parameters
     parser.add_argument("--game_power", type=int, help="The power of the distance function for the game (default is the --power arg chosen at run time)")
