@@ -1,7 +1,7 @@
 from reinforcement_learning import State_initializer, Policy_iterator, Renderer, Game
 import argparse
 
-def main(filename, train, load_checkpoint, max_episodes, render_training, logging, alpha, gamma, epsilon, min_epsilon, power, eat_reward, move_reward, lose_reward, win_reward, game_power, loop_till_loss, ghost_controlled):
+def main(filename, train, load_checkpoint, max_episodes, render_training, random_spawn,logging, alpha, gamma, epsilon, min_epsilon, power, eat_reward, move_reward, lose_reward, win_reward, game_power, loop_till_loss, ghost_controlled):
     # Initialize environment
     state_initializer = State_initializer(map_filename=filename, logging=True)
     renderer = None
@@ -10,7 +10,7 @@ def main(filename, train, load_checkpoint, max_episodes, render_training, loggin
     policy_iterator = Policy_iterator(state_initializer, max_episodes=max_episodes,
                                         renderer=renderer,
                                         logging=logging, alpha=alpha, gamma=gamma, epsilon=epsilon, min_epsilon=min_epsilon, power=power,
-                                        eat_reward = eat_reward, move_reward=move_reward, lose_reward=lose_reward, win_reward=win_reward, random_spawn=False)
+                                        eat_reward = eat_reward, move_reward=move_reward, lose_reward=lose_reward, win_reward=win_reward, random_spawn=random_spawn)
     if train:
         if load_checkpoint: policy_iterator.load_Q()
         policy_iterator.run()
