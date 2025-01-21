@@ -31,12 +31,12 @@ if __name__ == "__main__":
 
 
     # Game Parameters
+    parser.add_argument("--loop_till_loss", default=False, action='store_true', help="Whether to loop till loss")
+    parser.add_argument("--ghost_controlled", default=False, action='store_true', help="Whether the ghost is controlled by the model")
     parser.add_argument("--game_power", type=int, help="The power of the distance function for the game (default is the --power arg chosen at run time)")
     args = parser.parse_args()
     if args.game_power is None:
         args.game_power = args.power
-    parser.add_argument("--loop_till_loss", default=False, action='store_true', help="Whether to loop till loss")
-    parser.add_argument("--ghost_controlled", default=False, action='store_true', help="Whether the ghost is controlled by the model")
 
 
     main(**vars(parser.parse_args()))
