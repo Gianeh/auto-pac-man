@@ -9,11 +9,11 @@ from multiprocessing import Manager
 game_powers = [0,2,4,6,8,10]
 simulations_number = 100
 
-enumerator = States_enumerator(map_filename="ez_map", logging=True)
-value_iterator = Value_iterator(enumerator, alpha = 0.9, epsilon = 1, lose_cost = 20000, win_cost = -50000, move_cost = 10, eat_cost = -10, power = 10, control_accuracy=True, logging=True)
-value_iterator.run()
-value_iterator.store_policy()
-value_iterator.store_value_function()
+enumerator = States_enumerator(map_filename="map_2", logging=True)
+value_iterator = Value_iterator(enumerator, alpha=0.9, epsilon=0.01, lose_cost=200, win_cost=-500, move_cost=1, eat_cost=-1, power=2, control_accuracy=True, logging=True)
+#value_iterator.run()
+#value_iterator.store_policy()
+#value_iterator.store_value_function()
 
 manager = Manager()
 progress_dict = manager.dict()
