@@ -405,7 +405,7 @@ class Policy_iterator:
                     print(f"Episode: {self.episodes}, winrate: {n_wins/n_games}, wins: {n_wins}, current epsilon: {self.epsilon}") 
 
                 # Decay epsilon exponentially towards 0 at the end of the training
-                self.epsilon = self.min_epsilon + ((original_epsilon - self.min_epsilon) * exp(-0.00001 * self.episodes))
+                self.epsilon = max(self.min_epsilon, self.min_epsilon + ((original_epsilon - self.min_epsilon) * exp(-0.00001 * self.episodes)))
 
                 # Every 1000 episodes store the Q function weights
                 if self.episodes % 1000 == 0:
@@ -422,10 +422,14 @@ class Policy_iterator:
 
     def load_Q(self):
         if os.path.exists("./Q_tables/"+self.filename+".txt"):
+            print("Loading Q function from file... this may take a while")
+            lines = 0
             with open("./Q_tables/"+self.filename+".txt", "r") as file:
                 for line in file:
                     key, value = line.split(":")
                     self.Q[eval(key)] = float(value)
+                    lines += 1
+            print("Q function loaded successfully! Number of lines read:", lines)
         else:
             print("The Q function file does not exist yet")
 
