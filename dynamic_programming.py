@@ -303,9 +303,10 @@ class Value_iterator:
 
 
     def g(self, state, eaten):
+        cost = 0
         # if pacman is eaten by a ghost
         if state[0] in state[1:self.number_of_movables]:
-            return self.lose_cost
+            cost += self.lose_cost
         # -- Elif pacman is adjacent (including diagonals) to a ghost, it's penalized
         for i in range(1, self.number_of_movables):
             ghost_x, ghost_y = state[i]  # Ghost
@@ -324,15 +325,15 @@ class Value_iterator:
             
             # If the ghost is in any of those neighboring cells, apply the lose cost
             if (ghost_x, ghost_y) in neighbors:
-                return self.lose_cost/4
+                cost += self.lose_cost/5
             
         # if pacman ate a candy
         if eaten:
             if sum(state[self.number_of_movables:]) == 0:
-                return self.win_cost
-            return self.eat_cost
+                cost +=  self.win_cost
+            cost += self.eat_cost
         # otherwise
-        return self.move_cost
+        return cost + self.move_cost
     
     def store_policy(self, filename=""):
         if filename == "": filename = self.filename
