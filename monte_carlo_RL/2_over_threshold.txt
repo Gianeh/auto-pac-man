@@ -1,0 +1,17 @@
+efficiency = 0.029166666666666667, stage_cost_sum = 283950.0
+efficiency = 0.028833333333333332, stage_cost_sum = 278130.0
+efficiency = 0.030666666666666665, stage_cost_sum = 300840.0
+efficiency = 0.030833333333333334, stage_cost_sum = 297650.0
+efficiency = 0.034166666666666665, stage_cost_sum = 335850.0
+efficiency = 0.03266666666666666, stage_cost_sum = 319760.0
+efficiency = 0.03233333333333333, stage_cost_sum = 311140.0
+efficiency = 0.030666666666666665, stage_cost_sum = 296440.0
+efficiency = 0.028166666666666666, stage_cost_sum = 275290.0
+efficiency = 0.026333333333333334, stage_cost_sum = 254580.0
+efficiency = 0.028666666666666667, stage_cost_sum = 280720.0
+efficiency = 0.03233333333333333, stage_cost_sum = 314740.0
+efficiency = 0.03133333333333333, stage_cost_sum = 305480.0
+efficiency = 0.027, stage_cost_sum = 260420.0
+efficiency = 0.027333333333333334, stage_cost_sum = 265440.0
+efficiency = 0.024166666666666666, stage_cost_sum = 234850.0
+efficiency = 0.030666666666666665, stage_cost_sum = 300240.0
