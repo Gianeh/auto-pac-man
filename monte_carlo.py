@@ -1,5 +1,6 @@
 # parallel_grid_search.py
-# Description: This script runs a grid search for hyperparameter tuning in parallel.
+# Description: This script runs a Monte Carlo simulation for the Pacman game. 
+# It runs the simulation for different game powers and stores the results in the monte_carlo folder.
 
 from joblib import Parallel, delayed
 from dynamic_programming import States_enumerator, Value_iterator, Game
