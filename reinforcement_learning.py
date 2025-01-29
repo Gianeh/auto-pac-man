@@ -566,6 +566,7 @@ class Game:
         self.candies_positions = policy_iterator.candies_positions
         self.moves = policy_iterator.moves   
         self.reward = policy_iterator.reward
+        self.random_spawn = policy_iterator.random_spawn
 
         self.logging = logging
         self.measure_performance = measure_performance or monte_carlo
@@ -644,7 +645,7 @@ class Game:
             self.efficiency_ratio = 0
             self.reward_sum = 0
 
-        if not (self.monte_carlo or self.measure_performance):
+        if (not self.monte_carlo and not self.measure_performance) and self.random_spawn:
             # Randomize the initial positions of all ghosts
             for ghost_index in range(1, self.number_of_movables):
                 new_ghost_position = choice(self.possible_positions)
