@@ -10,7 +10,6 @@ for filename in os.listdir("./monte_carlo"):
     game_powers.add(int(filename.split("_")[0]))
 
 game_powers = sorted(list(game_powers), reverse = True)
-print(game_powers)
 
 efficiencies = {game_power: [] for game_power in game_powers}
 stage_costs = {game_power: [] for game_power in game_powers}
@@ -66,7 +65,7 @@ ax.set_xlabel('Cumulative Cost')
 ax.set_ylabel('Game Power')
 ax.set_zlabel('Frequency')
 
-tick_positions = bin_centers[::3]  # Only show some bins
+tick_positions = bin_centers[::4]  # Only show some bins
 ax.set_xticks(tick_positions)
 ax.set_xticklabels([f"{val:.1e}" for val in tick_positions])
 
