@@ -31,14 +31,14 @@ def main():
     args = parser.parse_args()
 
     #Renderer(state_initializer, fps=10)
-    state_initializer = State_initializer(map_filename="ClassicGrid", load_from_txt=True, logging=True)
+    state_initializer = State_initializer(map_filename="map_3", load_from_txt=False, logging=True)
     policy_iterator = Neural_Policy_iterator(state_initializer, random_spawn=False, max_episodes=8000, power=2, renderer=None, logging=True, increasing_power=False, alpha = 0.001, gamma = 0.95, epsilon = 1.0, min_epsilon=0.05, eat_reward = 20, move_reward=-5, lose_reward=-500, win_reward=100)
     policy_iterator.load_Q()
     #policy_iterator.run()
     #policy_iterator.store_Q()
     #train_schedule(policy_iterator, args.max_episodes)
-    pacman_game = Game(policy_iterator, fps=15, pretrained=True, logging=False, power=3)
-    pacman_game.run()
+    pacman_game = Game(policy_iterator, fps=15, pretrained=True, logging=False, power=2)
+    pacman_game.run(loop_till_loss=True)
 
 if __name__ == "__main__":
     

@@ -110,8 +110,6 @@ def ghost_move_pathfinding(state, ghost_index, moves, game_map, power=1):
         dist = a_star_distance(game_map, new_position, state[0])
         a_star_distances.append(dist)
 
-    # Build pmf just like with manhattan_distance
-    # e.g., if you have: build_pmf(distances, power)
     pmf = build_pmf(a_star_distances, power)
 
     return possible_actions, pmf
