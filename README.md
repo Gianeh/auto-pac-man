@@ -14,7 +14,7 @@ This repository explores various approaches to solving Pac-Man through dynamic p
 For stable implementations, please refer to the following branches:
 - **dp:** Project centered on dynamic programming.
 - **rl:** Q-Learning solution.
-- **deep_rl:** Deep Q-Learning solutions.
+- **neural_rl:** Deep Q-Learning solutions.
 
 ## Disclaimer
 - **Collaboration:** This project is a collaborative academic effort. Contributions from team members have shaped this exploratory work.
