@@ -1,0 +1,13 @@
+mappe da testare:
+- ez_map            dynamic programming, Q-learning, Deep Q-learning mlp e convolutional
+- ClassicGrid.txt   Q-learning, Deep Q-learning mlp e convolutional
+
+grafici montecarlo
+candy efficiency
+
+pulizia codice e eventuali argparser
+aggiungere commenti
+
+'''
+
+AGGIORNARE reward() in dp e rl
