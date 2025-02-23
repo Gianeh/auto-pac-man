@@ -1,6 +1,8 @@
 # Auto-Pac-Man – Development Branch
 
-**Disclaimer:**  
+![Alt text](https://github.com/Gianeh/auto-pacman/pacman_game.png "Game Graphic")
+
+**Test Branch:**  
 This branch contains early development and experiments only. The code here represents initial efforts and may be unstable or incomplete.
 
 ## Overview
