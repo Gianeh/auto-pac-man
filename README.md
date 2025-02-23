@@ -1,6 +1,6 @@
 # Auto Pac-Man – Dynamic Programming
 
-This branch implements a dynamic programming (DP) solution for solving Pac-Man via value iteration. The code in this branch enumerates game states from a map, performs value iteration to compute an optimal policy, and then runs a Pygame simulation of Pac-Man using that policy.
+Dynamic programming (DP) solution for solving Pac-Man via value iteration. The code in this branch enumerates game states from a map, performs value iteration to compute an optimal policy, and then runs a Pygame simulation of Pac-Man using that policy.
 
 > **Disclaimer:**  
 > All the codebase is experimental and no longer deeply maintained. Feel free to experiment and propose edits!
@@ -120,5 +120,3 @@ This project is the outcome of collaborative academic work and represents initia
 Insipiration was taken mainly from:
 - Berkely AI Materials on Pac-man projects: https://ai.berkeley.edu/project_overview.html
 - Tycho van der Ouderaa adapted Deep RL version of the above: https://github.com/tychovdo/PacmanDQN
-
----
