@@ -1,6 +1,6 @@
 # Auto Pac-Man – Q-Learning
 
-This branch implements a reinforcement learning (RL) solution for solving Pac-Man. Instead of relying on full state enumeration as in the DP branch, this RL approach uses a policy iteration algorithm based on Q-learning. The agent learns an optimal policy by interacting with the environment, updating its Q-function over many episodes, and then running a Pygame simulation using the learned policy.
+Reinforcement learning playing Pac-Man. Instead of relying on full state enumeration as in the DP branch, this RL approach uses a policy iteration algorithm based on Q-learning. The agent learns an optimal policy by interacting with the environment, updating its Q-function over many episodes, and then running a Pygame simulation using the learned policy.
 
 > **Disclaimer:**  
 > All code in this branch is experimental and no longer deeply maintained. Feel free to experiment and propose edits!
@@ -128,8 +128,3 @@ python main.py --filename map_1 --train --load_checkpoint --max_episodes 500000 
 This project is the result of collaborative academic efforts exploring various AI strategies for game control. Inspiration was drawn from:
 - Berkeley AI Materials on Pac-Man projects: [Berkeley AI Pac-Man Projects](https://ai.berkeley.edu/project_overview.html)
 - Tycho van der Ouderaa’s adaptation of Deep RL for Pac-Man: [PacmanDQN](https://github.com/tychovdo/PacmanDQN)
-
----
-
-Feel free to experiment and propose edits as you explore reinforcement learning approaches to solving Pac-Man!
-
