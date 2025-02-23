@@ -9,6 +9,8 @@ This branch implements a dynamic programming (DP) solution for solving Pac-Man v
 
 ## Overview
 
+![Alt text](https://github.com/Gianeh/auto-pac-man/blob/dp/dp_demo.gif "Game demo --loop_till_loss")
+
 The DP branch is structured around three main components:
 
 - **States Enumeration:**  
