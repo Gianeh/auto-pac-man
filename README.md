@@ -1,4 +1,4 @@
-# Auto Pac-Man – Dynamic Programming Branch
+# Auto Pac-Man – Dynamic Programming
 
 This branch implements a dynamic programming (DP) solution for solving Pac-Man via value iteration. The code in this branch enumerates game states from a map, performs value iteration to compute an optimal policy, and then runs a Pygame simulation of Pac-Man using that policy.
 
