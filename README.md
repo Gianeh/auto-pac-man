@@ -1,4 +1,4 @@
-# Auto Pac-Man – Deep Q-Learning (Neural RL) Branch
+# Auto Pac-Man – Deep Q-Learning
 
 This branch implements a deep Q-learning solution for Pac-Man using neural networks to approximate the Q function. In this branch, you will find implementations using both a Convolutional Neural Network (CNN) and a Multilayer Perceptron (MLP). The CNN version has produced valid results on all maps, while the MLP version—though included for experimentation—is not well-suited for the complex ClassicGrid map (from Berkeley) and requires additional tuning to perform reliably even on the simpler test maps used in the DP and RL branches.
 
