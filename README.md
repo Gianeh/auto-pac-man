@@ -1,7 +1,3 @@
-Below is a final version of the README file for the RL branch:
-
----
-
 # Auto Pac-Man – Reinforcement Learning Branch
 
 This branch implements a reinforcement learning (RL) solution for solving Pac-Man. Instead of relying on full state enumeration as in the DP branch, this RL approach uses a policy iteration algorithm based on Q-learning. The agent learns an optimal policy by interacting with the environment, updating its Q-function over many episodes, and then running a Pygame simulation using the learned policy.
