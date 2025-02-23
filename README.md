@@ -123,8 +123,5 @@ This project is the result of collaborative academic work exploring various AI s
 - Berkeley AI Materials on Pac-Man projects: [Berkeley AI Pac-Man Projects](https://ai.berkeley.edu/project_overview.html)
 - Tycho van der Ouderaa’s adaptation of Deep RL for Pac-Man: [PacmanDQN](https://github.com/tychovdo/PacmanDQN)
 
----
-
-Feel free to experiment and propose edits as you explore deep reinforcement learning approaches to solving Pac-Man!
 
 ---
